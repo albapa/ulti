@@ -2,6 +2,7 @@
 ##############
 #Game Engine
 ##############
+import Base.show
 
 #The 32 Cards
 typealias Card Int #could be set to UInt8/Int to fit in memory and/or speed
@@ -89,6 +90,8 @@ end
 #Note: could be implemented as a full-blown class if needed
 typealias CardSet IntSet
 
+@enum Player p1=0 p2=1 p3=2
+
 type GameState
     contract::Contract  #mi a bemondas
 
@@ -101,6 +104,8 @@ type GameState
     p2_discard::CardSet 
     p3_hand::CardSet 
     p3_discard::CardSet 
+
+    currentPlayer::Player
 
     function GameState()
     function parse()
@@ -124,10 +129,36 @@ type GameState
 
     #efficiend storage for game state:
     #list of 32 cardsets, 3 bits each -> 96 bits + bemondas a #tablazatbol
-    function compact() 
-    function decompact()
+    # function compact() 
+    # function decompact()
 end
 
+#The valid card to play in this trick (if there is already a card on the table)
+function trickable(hand::CardSet, table::CardSet, suit::Suit)
+    sameSuitLarger::CardSet()
+    sameSuiteSmaller::CardSet()
+    trump::CardSet()
+    other::CardSet()
+
+    for card in hand 
+
+    end
+end
+
+#The valid moves in that round
+function legalMoves(g::GameState)
+    if isempty(g.table) #new trick
+        if isempty(<<<currentPlayer's hand>>>) #gameEnd
+            return CardSet() #no legal moves
+        else
+            legalSet = pCurrent_hand <<<vagy aki jon>>>
+            if(<<<ulti v repulo nem bukhat direkt>>>)
+                setdiff!(legalSet, <<<adu 7 v. 8>>>)
+        end
+    else #mar van lap
+        playerSets = trickable(pCurrent_hand, g.asztal)
+    end
+end
 
 ##############
 #AI
@@ -136,4 +167,10 @@ end
 type MiniMaxTree
 #tree for evaluation
 
+#generate (sub)hands from the current state, and run
+#Monte Carlo simulation on it
+#use existing probabilities for hand distribution
+#and hypergeometric probabilities otherwise
+function MonteCarlo()
+end
 
