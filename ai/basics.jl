@@ -1,7 +1,7 @@
 ##############
 #Cards, Rules and helper functions
 ##############
-# import Base.show
+import Base.show
 
 #The 32 Cards
 typealias Card Int #could be set to UInt8/Int to fit in memory and/or speed
@@ -39,7 +39,7 @@ const ❤️️️️T = pt = Card(30)
 const ❤️️️️A = pa = Card(31) #Piros ász
 #@enum CARD T7=0 T8=1 T9=2 TA=3 TF=4 TK=5 TT=6 TS=7 Z7=8 Z8=9 Z9=10 ZA=11 ZF=12 ZK=13 ZT=14 ZS=15 M7=16 M8=17 M9=18 MA=19 MF=20 MK=21 MT=22 MS=23 P7=24 P8=25 P9=26 PA=27 PF=28 PK=29 PT=30 PS=31
 #TODO cards = Dict((Card0, "🎃 7"), <<<etc.>>>)
-cards = [ "🎃 7", "🎃 8", "🎃 9", "🎃 V", "🎃 F", "🎃 K", "🎃 T", "🎃 A", "🍃 7", "🍃 8", "🍃 9", "🍃 V", "🍃 F", "🍃 K", "🍃 T", "🍃 A", "🌰 7", "🌰 8", "🌰 9", "🌰 V", "🌰 F", "🌰 K", "🌰 T", "🌰 A", "❤️️ ️️7", "❤️️ ️️8", "❤️️ ️️9", "❤️️ ️️V", "❤️️️️ ️️F", "❤️️ ️️K", "❤️️ ️️T", "❤️️ ️️A"]
+cards = Dict([ (t7,"🎃 7"), (t8,"🎃 8"), (t9,"🎃 9"), (tv,"🎃 V"), (tf,"🎃 F"), (tk,"🎃 K"), (tt,"🎃 T"), (ta,"🎃 A"), (z7,"🍃 7"), (z8,"🍃 8"), (z9,"🍃 9"), (zv,"🍃 V"), (zf,"🍃 F"), (zk,"🍃 K"), (zt,"🍃 T"), (za,"🍃 A"), (m7,"🌰 7"), (m8,"🌰 8"), (m9,"🌰 9"), (mv,"🌰 V"), (mf,"🌰 F"), (mk,"🌰 K"), (mt,"🌰 T"), (ma,"🌰 A"), (p7,"❤️️ ️️7"), (p8,"❤️️ ️️8"), (p9,"❤️️ ️️9"), (pv,"❤️️ ️️V"), (pf,"❤️️️️ ️️F"), (pk,"❤️️ ️️K"), (pt,"❤️️ ️️T"), (pa,"❤️️ ️️A")])
 
 typealias Suit Int
 const 🎃 = t = Suit(0) #Tök
@@ -84,19 +84,35 @@ end
 #
 # end
 
+#Bemondasok
+# abban a sorrendben, ahogy egymashoz fuzik oket (ulti-repulo-40_100-negyAsz-durchmars)
 typealias AlapBemondas Int
-const parti = passz = AlapBemondas(1)
-const _40_100 = negyvenSzaz = AlapBemondas(2)
-const ulti = AlapBemondas(3)
-const repulo = AlapBemondas(4)
+const semmi = AlapBemondas(0) #amig nincs semmi
+const ulti = ultimo = AlapBemondas(1)
+const repulo = AlapBemondas(2)
+const _40_100 = negyvenSzaz = AlapBemondas(3)
+const _20_100 = huszSzaz = AlapBemondas(4)
 const _4_asz = negyAsz = AlapBemondas(5)
-const betli = AlapBemondas(6)
-const durchmars = AlapBemondas(7)
-const _20_100 = huszSzaz = AlapBemondas(8)
-const _4_10 = negyTizes = AlapBemondas(9)
+const durchmars = AlapBemondas(6)
+const redurchmars = teritettDurchmars = AlapBemondas(7)
+const parti = passz = AlapBemondas(8)
+const betli = AlapBemondas(9)
 const rebetli = teritettBetli = AlapBemondas(10)
-const redurchmars = teritettDurchmars = AlapBemondas(11)
-const AlapBemondasValues = [1, 4, 4, 4, 4, 30, 6, 8, 55, 20, 12]
+const _4_10 = negyTizes = AlapBemondas(11)
+alapBemondasProperties = Dict([
+  (semmi, ("", 0)),
+  (ulti, ("Ulti", 4)),
+  (repulo, ("Repülő", 4)),
+  (_40_100, ("40-100", 4)),
+  (_20_100, ("20-100", 8)),
+  (_4_asz, ("4 Ász", 4)),
+  (durchmars, ("Durchmars", 6)),
+  (redurchmars, ("Terített Durchmars", 12)),
+  (parti, ("Passz", 1)),
+  (betli, ("Betli", 30)), #mert szintelen, nincs szorzo
+  (rebetli, ("Terített Betli", 20)),
+  (_4_10, ("4 Tízes", 55)),
+])
 #const alapBemondasok = [("Passz", 1), ("40-100", 4) <<<stb.>>>]
 
 #TODO: teritett, szinnelkuli, stb.
@@ -137,8 +153,7 @@ contractValues = Dict{Tuple{Suit,AlapBemondas,Modosito}, Int}()
 for suit in [t, z, m, p]
     for bem in [parti, negyvenSzaz, ulti, repulo, negyAsz, durchmars, huszSzaz, rebetli, redurchmars]
         for honnan in [elolrol, ramondva, hatulrol]
-            println(suit, " ", bem, " ", honnan, " -> ", honnan * suitValues[suit] * AlapBemondasValues[bem])
-            contractValues[(suit, bem, honnan)] = honnan * suitValues[suit] * AlapBemondasValues[bem]
+            contractValues[(suit, bem, honnan)] = honnan * suitValues[suit] * alapBemondasProperties[bem][2]
         end
     end
 end
@@ -155,3 +170,7 @@ contractValues[(p, negyTizes, hatulrol)] = 55
 contractValues[(undecided, negyTizes, hatulrol)] = 55
 contractValues[(notrump, betli, hatulrol)] = 30
 contractValues[(notrump, redurchmars, hatulrol)] = 144
+
+##############
+#Tests
+##############
