@@ -53,9 +53,9 @@ const suitProperties = Dict([
 #TODO const faceProperties = Dict([(t, ("Tök", 3)), (z, ("Zöld", 4)), (m, ("Makk", 5)), (p, ("Piros", 6))]) #Halloween-kor TOK = 7 :)
 
 SuitFace(card::Card) = Suit(div(Int(card), 8)), Face(rem(Int(card), 8))
-SuitFace(suit::Suit, face::Face) = Card(8 * Int(suit) + Int(face))
+Card(suit::Suit, face::Face) = Card(8 * Int(suit) + Int(face))
 function *(suit::Suit, face::Face)
-    SuitFace(suit, face)
+    Card(suit, face)
 end
 
 #compare two cards using the trump suit
@@ -170,6 +170,24 @@ immutable Contract
     suit::Suit
     contracts::Array{ContractElement}
     totalvalue::Number
+end
+
+function isUlti(contract::Contract)
+    for ce in contract.contracts
+        if ce.bem == ulti
+            return true
+        end
+    end
+    return false
+end
+
+function isRepulo(contract::Contract)
+    for ce in contract.contracts
+        if ce.bem == repulo
+            return true
+        end
+    end
+    return false
 end
 
 contractValues = Dict{Tuple{Suit,AlapBemondas,Modosito}, Int}()
