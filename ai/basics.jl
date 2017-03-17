@@ -1,7 +1,7 @@
 ##############
 #Cards, Rules and helper functions
 ##############
-import Base: show, <, *
+import Base: show, <, *, copy
 
 #The 32 Cards
 #Tok 7es-tol (t7) piros Aszig (pA).
@@ -170,6 +170,11 @@ immutable Contract
     suit::Suit
     contracts::Array{ContractElement}
     totalvalue::Number
+end
+
+function copy(contract::Contract)
+    #TODO: deep copy of contracts? - maybe not for performance reasons
+    Contract(contract.suit, contract.contracts, contract.totalvalue)
 end
 
 function isUlti(contract::Contract)
