@@ -2,6 +2,12 @@
 #Cards, Rules and helper functions
 ##############
 import Base: show, <, *, copy
+DEBUG = true
+UNSAFE = false #assert, type safety, etc. off
+
+#TODO performance optimisations: card sets are UInt32s and cards are 
+#sets of 1, eg pA = 0x00000001 << 31. Everything is a cardset. Stuff is memoized.
+#move is "cs & !card" to remove, "cs | card" to add <<<for adventorous ones xor>>>
 
 #The 32 Cards
 #Tok 7es-tol (t7) piros Aszig (pA).

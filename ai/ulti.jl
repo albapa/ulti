@@ -10,7 +10,7 @@ g = GameState(
   CardSet(), #pakli ures (kiosztva)
   Array{Card, 1}(), #asztal ures
   CardSet([t9, tU]), #talon
-  [
+  (
     PlayerState(
       Player(1),
       CardSet([pA,pT,pK,pU,p7, mK,mU,m8, tT, z9]), #felvevo lapja
@@ -26,9 +26,13 @@ g = GameState(
       CardSet([mT,m9, zA,zT,zU,z8, tA,tK,t8,t7 ]), #3. jatekos lapja
       [], 0,0, #nincs meg utese, 20 vagy 40
     )
-  ],
+  ),
   p1 #current player
 )
+
+
+# alfabeta(g, -1, -typemin(Int), typemax(Int))
+# alfabeta(g, -1, -g.contract.totalvalue, g.contract.totalvalue)
 
 ##############
 #Tests

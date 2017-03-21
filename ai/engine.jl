@@ -1,6 +1,8 @@
 include("basics.jl")
+include("IntSet32.jl")
 import DataStructures
-import Base.copy
+import Base: copy, union, in, intersect
+# import Base: complement
 
 ##############
 #Game Engine
@@ -27,6 +29,11 @@ import Base.copy
 #a set of cards
 #implemented as a memoised set of sets to avoid duplication
 #Note: could be implemented as a full-blown class if needed
+
+#TODO: Performance: everything Int and native IntSet32
+
+# typealias CardSet IntSet32
+# CardSet(cards::Array{Card, 1}) = IntSet32([Int(card) for card in cards])
 typealias CardSet DataStructures.IntSet
 CardSet(cards::Array{Card, 1}) = DataStructures.IntSet([Int(card) for card in cards])
 
@@ -62,7 +69,9 @@ const playerNames = Dict([
     (p6, "Tétova"),
     (pX, ""), ]) #barmelyik jatekos (null)
 
-nextPlayer(p::Player) = Player(Int(p) % 3 + 1)
+nextPlayer(pl::Player) = Player(Int(pl) % 3 + 1)
+nextPlayer(pl::Player, offset::Int) = Player(mod(Int(pl) - 1 + offset, 3) + 1)
+previousPlayer(pl::Player) = nextPlayer(pl, -1)
 # const FELVEVO = p1
 # const ELLENVONAL = [p2, p3]
 # const ELLENFEL1 = p2
@@ -91,7 +100,8 @@ type GameState
     asztal::Array{Card}  # asztal kozepe - here order matters (pl. 🌰K-ra adu 🎃9 nem ugyanaz mint adu 🎃9-re 🌰K dobas: az egyikre adut kell tenni, a masikra makkot ha van) thus it is not a set
     talon::CardSet      # talon
 
-    playerStates::Array{PlayerState}
+    # playerStates::Array{PlayerState}
+    playerStates::Tuple{PlayerState,PlayerState,PlayerState}
 
     currentPlayer::Player
     currentSuit::Suit
@@ -118,7 +128,7 @@ type GameState
 
     #default constructor
     function GameState(contract::Contract, deck::CardSet, asztal::Array{Card,1},
-        talon::CardSet, playerStates::Array{PlayerState,1}, currentPlayer::Player=p1,
+        talon::CardSet, playerStates::Tuple{PlayerState,PlayerState,PlayerState}, currentPlayer::Player=p1,
         currentSuit::Suit=undecided, lastTrick::Player = pX , lastTrick7::Player = pX,
         butLastTrick8::Player = pX , adu7kiment=false, adu8kiment=false,
         lastTrickFogottUlti::Player=pX, tricks::Int = 0, felvevoTricks = 0, ellenvonalTricks = 0,
@@ -156,10 +166,10 @@ end
 
 #copy constructor
 function copy(g::GameState)    
-    playerStates = [copy(ps) for ps in g.playerStates]
+    ps2 = (copy(g.playerStates[1]), copy(g.playerStates[2]), copy(g.playerStates[3]))
 
     GameState(copy(g.contract), copy(g.deck), copy(g.asztal), 
-        copy(g.talon), playerStates, g.currentPlayer, 
+        copy(g.talon), ps2, g.currentPlayer, 
         g.currentSuit, g.lastTrick, g.lastTrick7, g.butLastTrick8, 
         g.adu7kiment, g.adu8kiment, g.lastTrickFogottUlti, g.tricks, 
         g.felvevoTricks, g.ellenvonalTricks, g.felvevoTizesek, 

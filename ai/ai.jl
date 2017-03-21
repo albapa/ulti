@@ -9,12 +9,16 @@ global abN = 0
 global gLast=nothing
 #END DEBUG
 
+moves = Dict{Card, Int64}()
+
 #TODO
 #this is the main (recursive loop for the minimax evaluation)
 #note: may be implemented partially on the client side in javascript
 # type MiniMaxTree
 #tree for evaluation
 #TODO memoise: make sure states are identical if situation is identical - maybe define custom hash, use IntSets everywhere, and maybe-maybe (doublecheck) leave alpha and beta out of the memoise hash
+#BUG players are not in turn. Make sure max-min players are called right (if maximisingPlayer ...). Eventually there will be three types of players with different score goals (csendes ulti miatt)
+
 function alfabeta(g::GameState, depth::Int, α::Int, β::Int)
     #DEBUG
     global abN += 1
@@ -29,11 +33,14 @@ function alfabeta(g::GameState, depth::Int, α::Int, β::Int)
             #create new state
             gNew = newState(g, Card(card))
 
+            α = max(α, alfabeta(gNew, depth-1, α, β))
+
             # #DEBUG
-            # print(g)
+            if depth > -2
+                moves[Card(card)] = α
+            end
             # #END DEBUG
 
-            α = max(α, alfabeta(gNew, depth-1, α, β))
             if β ≤ α
                 break                            # (* Beta cut-off *)
             end
