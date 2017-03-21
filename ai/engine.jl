@@ -1,5 +1,5 @@
 include("basics.jl")
-include("IntSet32.jl")
+# include("IntSet32.jl")
 import DataStructures
 import Base: copy, union, in, intersect
 # import Base: complement
@@ -34,8 +34,10 @@ import Base: copy, union, in, intersect
 
 # typealias CardSet IntSet32
 # CardSet(cards::Array{Card, 1}) = IntSet32([Int(card) for card in cards])
-typealias CardSet DataStructures.IntSet
-CardSet(cards::Array{Card, 1}) = DataStructures.IntSet([Int(card) for card in cards])
+# typealias CardSet DataStructures.IntSet
+# CardSet(cards::Array{Card, 1}) = DataStructures.IntSet([Int(card) for card in cards])
+
+typealias CardSet CardSet32
 
 const tizesek = CardSet([tT, zT, mT, pT])
 const aszok = CardSet([tA, zA, mA, pA])
@@ -59,7 +61,14 @@ end
 aduk(cs::CardSet, adu::Suit) = intersect(cs, szinek[adu])
 
 #Players
-@enum Player p1=1 p2=2 p3=3 p4=4 p5=5 p6=6 pX=7
+typealias Player Int
+    p1=1 
+    p2=2 
+    p3=3 
+    p4=4 
+    p5=5 
+    p6=6 
+    pX=7
 const playerNames = Dict([
     (p1, "Alfa "),
     (p2, "Béla "),
@@ -80,24 +89,20 @@ previousPlayer(pl::Player) = nextPlayer(pl, -1)
 type PlayerState
     player::Player
     hand::CardSet
-    discard::Array{Card, 1}
+    discard::CardSet
     negyven::Int #0 vagy 1
     husz::Int #0-3
 end
 
-function copy(ps::PlayerState)    
-    PlayerState(ps.player, copy(ps.hand), copy(ps.discard), ps.negyven, ps.husz)
-end
-
 #The game state
 #IMPORTANT: as it is copied with shallow copy
-#   any field that changes across moves must not be referenced
+#   any field (such as contract) that changes across moves must not be referenced
 #   or should be explicitly deep copied by the copy constructor
 type GameState
     contract::Contract  #mi a bemondas
 
     deck::CardSet       # leosztatlan pakli
-    asztal::Array{Card}  # asztal kozepe - here order matters (pl. 🌰K-ra adu 🎃9 nem ugyanaz mint adu 🎃9-re 🌰K dobas: az egyikre adut kell tenni, a masikra makkot ha van) thus it is not a set
+    asztal::CardSet  # asztal kozepe - here order matters (pl. 🌰K-ra adu 🎃9 nem ugyanaz mint adu 🎃9-re 🌰K dobas: az egyikre adut kell tenni, a masikra makkot ha van) thus it is not a set
     talon::CardSet      # talon
 
     # playerStates::Array{PlayerState}
@@ -105,6 +110,7 @@ type GameState
 
     currentPlayer::Player
     currentSuit::Suit
+    whoseTrick::Player  #o viszi az utest eddig
     lastTrick::Player       #utolso utes
     lastTrick7::Player      #utolso utes adu hetessel
     butLastTrick8::Player   #utolso elotti utes adu 8-assal
@@ -119,45 +125,40 @@ type GameState
     felvevoOsszes::Int      #tizesek + aszok + utolso utes + 20 + 40
     ellenvonalOsszes::Int   #tizesek + aszok + utolso utes + 20 + 40
 
-    #Functions?
-    #Aszok es tizesek (for 4A, 4T es Parti)
-    # p1_A::Int = 0
-    # p1_T::Int = 0
-    # p23_A::Int = 0
-    # p23_T::Int = 0
-
     #default constructor
-    function GameState(contract::Contract, deck::CardSet, asztal::Array{Card,1},
-        talon::CardSet, playerStates::Tuple{PlayerState,PlayerState,PlayerState}, currentPlayer::Player=p1,
-        currentSuit::Suit=undecided, lastTrick::Player = pX , lastTrick7::Player = pX,
+    function GameState(contract::Contract, deck::CardSet, asztal::CardSet,
+        talon::CardSet, playerStates::Tuple{PlayerState,PlayerState,PlayerState}, 
+        currentPlayer::Player=p1, currentSuit::Suit=undecided, whoseTrick::Player=pX, 
+        lastTrick::Player = pX , lastTrick7::Player = pX,
         butLastTrick8::Player = pX , adu7kiment=false, adu8kiment=false,
         lastTrickFogottUlti::Player=pX, tricks::Int = 0, felvevoTricks = 0, ellenvonalTricks = 0,
         felvevoTizesek::Int=0, ellenvonalTizesek::Int=0, felvevoOsszes::Int=0, ellenvonalOsszes::Int=0)
 
-      new(contract, deck, asztal, talon, playerStates, currentPlayer, currentSuit, lastTrick, lastTrick7, butLastTrick8, adu7kiment, adu8kiment, lastTrickFogottUlti, tricks, felvevoTricks, ellenvonalTricks, felvevoTizesek, ellenvonalTizesek, felvevoOsszes, ellenvonalOsszes)
+      new(contract, deck, asztal, talon, playerStates, currentPlayer, currentSuit, whoseTrick, lastTrick, lastTrick7, butLastTrick8, adu7kiment, adu8kiment, lastTrickFogottUlti, tricks, felvevoTricks, ellenvonalTricks, felvevoTizesek, ellenvonalTizesek, felvevoOsszes, ellenvonalOsszes)
     end
 
-    #parser
-    function GameState(bemondas::String, lapok::String)
-      #example: ('piros nsz ulti', 't7 t8 p9 pa pf ps pk', 'z8 z9', ... <<<all 8 sets>>>)
-      #idea: allow for generic cards and suits, such as zx (any zold) or xx (any card) and deal them randomly
-      #checks: are all cards accounted for?
-      #nobody has the right number of cards
-
-
-
-    end
-
-    #create from serialised value
-    function GameState(s::String)
-
-    end
-
-    #efficiend storage for game state:
-    #list of 32 cardsets, 3 bits each -> 96 bits + bemondas a #tablazatbol
-    # function compact()
-    # function decompact()
 end
+
+#parser
+function GameState(bemondas::String, lapok::String)
+  #example: ('piros nsz ulti', 't7 t8 p9 pa pf ps pk', 'z8 z9', ... <<<all 8 sets>>>)
+  #idea: allow for generic cards and suits, such as zx (any zold) or xx (any card) and deal them randomly
+  #checks: are all cards accounted for?
+  #nobody has the right number of cards
+
+
+
+end
+
+#create from serialised value
+function GameState(s::String)
+
+end
+
+#efficiend storage for game state:
+#list of 32 cardsets, 3 bits each -> 96 bits + bemondas a #tablazatbol
+# function compact()
+# function decompact()
 
 #TODO
 # #create signature
@@ -165,16 +166,16 @@ end
 # end
 
 #copy constructor
-function copy(g::GameState)    
-    ps2 = (copy(g.playerStates[1]), copy(g.playerStates[2]), copy(g.playerStates[3]))
+# function copy(g::GameState)    
+#     ps2 = (copy(g.playerStates[1]), copy(g.playerStates[2]), copy(g.playerStates[3]))
 
-    GameState(copy(g.contract), copy(g.deck), copy(g.asztal), 
-        copy(g.talon), ps2, g.currentPlayer, 
-        g.currentSuit, g.lastTrick, g.lastTrick7, g.butLastTrick8, 
-        g.adu7kiment, g.adu8kiment, g.lastTrickFogottUlti, g.tricks, 
-        g.felvevoTricks, g.ellenvonalTricks, g.felvevoTizesek, 
-        g.ellenvonalTizesek, g.felvevoOsszes, g.ellenvonalOsszes)
-end
+#     GameState(copy(g.contract), copy(g.deck), copy(g.asztal), 
+#         copy(g.talon), ps2, g.currentPlayer, 
+#         g.currentSuit, g.lastTrick, g.lastTrick7, g.butLastTrick8, 
+#         g.adu7kiment, g.adu8kiment, g.lastTrickFogottUlti, g.tricks, 
+#         g.felvevoTricks, g.ellenvonalTricks, g.felvevoTizesek, 
+#         g.ellenvonalTizesek, g.felvevoOsszes, g.ellenvonalOsszes)
+# end
 
 #parse a list of cards
 #Format: known cards (e.g. p9) are marked suit (non-capital t,z,m,p) and face (capital 7,8,9,U,F,K,A)
@@ -202,29 +203,8 @@ function parseCards(s::String)
     #deal fix cards, then coloured cards (px), then multicouloured cards (pz.) then the rest (xx, xA)
 end
 
-#Move a card
-#Note: special for asztal which is an array not a set (order matters)?
-function move!(card::Card, from::CardSet, to::Vector{Card})
-    push!(to, card)
-    pop!(from, Int(card))
-end
-
-function move!(card::Card, from::CardSet, to::CardSet)
-    push!(to, Int(card))
-    pop!(from, Int(card))
-end
-
-function move!(cards::Vector{Card}, to::Vector{Card})
-    append!(to, cards)
-    empty!(cards)
-end
-
 function ps(g::GameState, player::Player)
     return g.playerStates[Int(player)]
-end
-
-function ps(g::GameState, i::Int)
-    return g.playerStates[i]
 end
 
 #Evaluate the score based on the game state
@@ -372,44 +352,27 @@ function flushScreen()
     println("\n"^100)
 end
 
-function showCard(card::Card, io::IO=STDOUT)
-  print(io, deck[card], " ")
-end
-
-function showCard(ca::Vector{Card}, io::IO=STDOUT, shortForm=false)
-    if isempty(ca) return end
-    for card in ca
-        showCard(card, io)
-    end
-end
-
-function showCard(cs::CardSet, io::IO=STDOUT, shortForm=false)
-    if isempty(cs) return end
-    toPrint = sort([Card(card) for card in cs], rev=true) #print in order
-    showCard(toPrint, io, shortForm)
-end
-
-function show(io::IO, pstate::Array{PlayerState, 1})
+function show(io::IO, pstate::Tuple{PlayerState, PlayerState, PlayerState})
     for pl in pstate
         print(io, playerNames[pl.player]); print(io, ": ")
-        showCard(pl.hand, io)
+        show(pl.hand, io)
         println(io); println(io)
     end
     println(io); println(io)
     for pl in pstate
         print(io, playerNames[pl.player]); print(io, " ütései: ")
-        showCard(pl.discard, io)
+        show(pl.discard, io)
         println(io)
     end
 end
 
 function show(io::IO, g::GameState)
     println(io, g.contract); println(io)
-    print(io, "Asztal: "); showCard(g.asztal, io); println(io); println(io); println(io)
+    print(io, "Asztal: "); show(g.asztal, io); println(io); println(io); println(io)
     show(io, g.playerStates)
-    print(io, "Talon: " ); showCard(g.talon, io); println(io)
+    print(io, "Talon: " ); show(g.talon, io); println(io)
 
-    print(io, "\n$(g.currentPlayer) jön. Lehetséges hívasok: "); showCard(validMoves(g))
+    print(io, "\n$(g.currentPlayer) jön. Lehetséges hívasok: "); show(validMoves(g))
     print(io, "\n\nÜtések száma: $(g.tricks)")
     print(io, "\nNyeremény: $(score(g))")
     # print(io, "\nadu: $(g.contract.suit)")
@@ -420,7 +383,8 @@ end
 
 #The valid card to play in this trick (if there is already a card on the table)
 function validMoves(g)
-    valid = copy(ps(g, g.currentPlayer).hand) #TODO not necessary if on stack
+    # valid = copy(ps(g, g.currentPlayer).hand)
+    valid = ps(g, g.currentPlayer).hand #copy not necessary if on stack
 
     if length(valid) <= 1 return valid end
 
@@ -429,13 +393,23 @@ function validMoves(g)
         assert(g.currentSuit != undecided)
         enSuit = sameSuit(valid, g.currentSuit)
         if length(enSuit) > 0
-            enSuitLarger = CardSet([x for x in enSuit if trumps(Card(x), g.asztal, g.contract.suit)])
-            valid = length(enSuitLarger) > 0 ? enSuitLarger : enSuit
+            largest = largestCard(g.asztal, g.contract.suit)
+            if g.currentSuit != g.contract.suit && SuitFace(largest)[1] == g.contract.suit #ha mar aduval utottek nem kell felul utni
+                valid = enSuit
+            else
+                largestEnSuite = largestCard(g.asztal, g.currentSuit) #best in suite - ezt kell felulutni
+                enSuitLarger = whichTrumps(enSuit, largestEnSuite, g.contract.suit)
+                valid = length(enSuitLarger) > 0 ? enSuitLarger : enSuit
+            end
         elseif g.contract.suit <= p #szines jatek -> adu?
             myTrumps = intersect(szinek[g.contract.suit], valid) #ha nincs szin adu
-            if length(myTrumps) > 0
-                myTrumpsLarger = CardSet([x for x in myTrumps if trumps(Card(x), g.asztal, g.contract.suit)]) #ha van mar adu azt is felul kell utni
-                valid = length(myTrumpsLarger) > 0 ? myTrumpsLarger : myTrumps
+            if length(myTrumps) > 0 #nincs szin de van adu
+                largest = largestCard(g.asztal)
+                valid = myTrumps
+                if SuitFace(largest)[1] == g.contract.suit #mar van adu felul kell utni
+                    myTrumpsLarger = whichTrumps(myTrumps, largest, g.contract.suit) #ha van mar adu azt is felul kell utni
+                    valid = length(myTrumpsLarger) > 0 ? myTrumpsLarger : myTrumps
+                end
             end
         end
     end
@@ -444,11 +418,11 @@ function validMoves(g)
 
     #ulti-repulonel valaszthatunk
     if length(valid) == 2 && g.contract.suit <= p &&
-        Card(g.contract.suit, _7) in valid && Card(g.contract.suit, _8) in valid &&
+        in(Card(g.contract.suit, _7), valid) && in(Card(g.contract.suit, _8), valid) &&
         isUlti(g.contract) && isRepulo(g.contract)
         #NOP
     elseif length(valid) > 1 && isUlti(g.contract)
-        setdiff!(valid, Int(Card(g.contract.suit, _7)))
+        valid = setdiff(valid, Card(g.contract.suit, _7))
     end
     if length(valid) > 1 && isRepulo(g.contract)
         adu8 = Card(g.contract.suit, _8)
@@ -486,7 +460,7 @@ function newState(gOld::GameState, negyven::Int, husz::Int)
         throw(ArgumentError("nincs negyven/husz"))
     end
 
-    g = copy(gOld)
+    g = GameState(gOld)
     ps(g, g.currentPlayer).negyven += negyven
     ps(g, g.currentPlayer).husz += husz
 
@@ -494,31 +468,29 @@ function newState(gOld::GameState, negyven::Int, husz::Int)
 end
 
 function newState(gOld::GameState, card::Card)
-    g = copy(gOld) #TODO make sure consistency - deep copy for immutability, or custom copy constructor for speed?
-    move!(card, ps(g, g.currentPlayer).hand, g.asztal)
+    g = GameState(gOld) #TODO make sure consistency - deep copy for immutability, or custom copy constructor for speed?
+    g.asztal = add(g.asztal, card)
+    ps(g, g.currentPlayer).hand = remove(ps(g, g.currentPlayer).hand, card)
 
     if card == Card(g.contract.suit, _7) g.adu7kiment = true end
     if card == Card(g.contract.suit, _8) g.adu8kiment = true end
 
     if length(g.asztal) == 1 #uj szin
         g.currentSuit = SuitFace(card)[1]
+        g.whoseTrick = g.currentPlayer
+    else
+        if trumpsAll(card, g.asztal, g.contract.suit)
+            g.whoseTrick = g.currentPlayer
+        end
     end
 
     if length(g.asztal) == 3 #kor vege
         tizasz = hanyAT(g.asztal)
-        bestCard = largestCard(g.asztal, g.contract.suit)
-        if bestCard == 3
-            whoseTrick = g.currentPlayer
-        elseif bestCard == 1
-            whoseTrick = nextPlayer(g.currentPlayer)
-        else bestCard == 2
-            whoseTrick = nextPlayer(nextPlayer(g.currentPlayer))
-        end
 
         #update variables
         g.tricks += 1
         if g.tricks == 10
-            g.lastTrick = whoseTrick
+            g.lastTrick = g.whoseTrick
 
             if g.lastTrick == p1 #utolso utes = 10
                 g.felvevoTizesek += 10
@@ -532,7 +504,7 @@ function newState(gOld::GameState, card::Card)
             if g.contract.suit <= p
                 trump7 = Card(g.contract.suit, _7)
                 if trump7 == g.asztal[bestCard]
-                    g.lastTrick7 = whoseTrick
+                    g.lastTrick7 = g.whoseTrick
                 else
                     holaHetes = findfirst(g.asztal, trump7)
                     if holaHetes == 3 g.lastTrickFogottUlti = g.currentPlayer
@@ -547,11 +519,11 @@ function newState(gOld::GameState, card::Card)
         if g.tricks == 9 && g.contract.suit <= p
             trump8 = Card(g.contract.suit, _8)
             if trump8 == g.asztal[bestCard]
-                g.butLastTrick8 = whoseTrick
+                g.butLastTrick8 = g.whoseTrick
             end
         end
 
-        if whoseTrick == p1
+        if g.whoseTrick == p1
             g.felvevoTricks += 1
             g.felvevoTizesek += tizasz * 10
             g.felvevoOsszes+= tizasz * 10
@@ -561,10 +533,12 @@ function newState(gOld::GameState, card::Card)
             g.ellenvonalOsszes+= tizasz * 10
         end
 
-        move!(g.asztal, ps(g, whoseTrick).discard)
+        ps(g, g.whoseTrick).discard = add(ps(g, g.whoseTrick).discard, g.asztal)
+        g.asztal = CardSet()
 
         g.currentSuit = undecided
-        g.currentPlayer = whoseTrick
+        g.currentPlayer = g.whoseTrick
+        g.whoseTrick = pX
 
     else #no trick yet
         g.currentPlayer = nextPlayer(g.currentPlayer)

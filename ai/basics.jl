@@ -1,6 +1,8 @@
 ##############
 #Cards, Rules and helper functions
 ##############
+include("IntSet32.jl")
+using Memoize
 import Base: show, <, *, copy
 DEBUG = true
 UNSAFE = false #assert, type safety, etc. off
@@ -12,57 +14,108 @@ UNSAFE = false #assert, type safety, etc. off
 #The 32 Cards
 #Tok 7es-tol (t7) piros Aszig (pA).
 #Note: az also U, mint "Unter Knabe" from the original German deck
-@enum(Card,
-    t7=0,  t8=1,  t9=2,  tU=3,  tF=4,  tK=5,  tT=6,  tA=7,
-    z7=8 , z8=9 , z9=10, zU=11, zF=12, zK=13, zT=14, zA=15,
-    m7=16, m8=17, m9=18, mU=19, mF=20, mK=21, mT=22, mA=23,
-    p7=24, p8=25, p9=26, pU=27, pF=28, pK=29, pT=30, pA=31)
+
+t7 = CardSet32(UInt32(1) << 0)
+t8 = CardSet32(UInt32(1) << 1)
+t9 = CardSet32(UInt32(1) << 2)
+tU = CardSet32(UInt32(1) << 3)
+tF = CardSet32(UInt32(1) << 4)
+tK = CardSet32(UInt32(1) << 5)
+tT = CardSet32(UInt32(1) << 6)
+tA = CardSet32(UInt32(1) << 7)
+
+z7 = CardSet32(UInt32(1) << 8 )
+z8 = CardSet32(UInt32(1) << 9 )
+z9 = CardSet32(UInt32(1) << 10)
+zU = CardSet32(UInt32(1) << 11)
+zF = CardSet32(UInt32(1) << 12)
+zK = CardSet32(UInt32(1) << 13)
+zT = CardSet32(UInt32(1) << 14)
+zA = CardSet32(UInt32(1) << 15)
+
+m7 = CardSet32(UInt32(1) << 16)
+m8 = CardSet32(UInt32(1) << 17)
+m9 = CardSet32(UInt32(1) << 18)
+mU = CardSet32(UInt32(1) << 19)
+mF = CardSet32(UInt32(1) << 20)
+mK = CardSet32(UInt32(1) << 21)
+mT = CardSet32(UInt32(1) << 22)
+mA = CardSet32(UInt32(1) << 23)
+
+p7 = CardSet32(UInt32(1) << 24)
+p8 = CardSet32(UInt32(1) << 25)
+p9 = CardSet32(UInt32(1) << 26)
+pU = CardSet32(UInt32(1) << 27)
+pF = CardSet32(UInt32(1) << 28)
+pK = CardSet32(UInt32(1) << 29)
+pT = CardSet32(UInt32(1) << 30)
+pA = CardSet32(UInt32(1) << 31)
 
 const deck = Dict([
-    (t7,"🎃 7"), (t8,"🎃 8"), (t9,"🎃 9"), (tU,"🎃 U"), (tF,"🎃 F"), (tK,"🎃 K"), (tT,"🎃 T"), (tA,"🎃 A"),
-    (z7,"🍃 7"), (z8,"🍃 8"), (z9,"🍃 9"), (zU,"🍃 U"), (zF,"🍃 F"), (zK,"🍃 K"), (zT,"🍃 T"), (zA,"🍃 A"),
-    (m7,"🌰 7"), (m8,"🌰 8"), (m9,"🌰 9"), (mU,"🌰 U"), (mF,"🌰 F"), (mK,"🌰 K"), (mT,"🌰 T"), (mA,"🌰 A"),
-    (p7,"❤️️ ️️7"), (p8,"❤️️ ️️8"), (p9,"❤️️ ️️9"), (pU,"❤️️ ️️U"), (pF,"❤️️️️ ️️F"), (pK,"❤️️ ️️K"), (pT,"❤️️ ️️T"), (pA,"❤️️ ️️A")])
+    t7 => ("t7", "🎃 7"), t8 => ("t8", "🎃 8"), t9 => ("t9", "🎃 9"), tU => ("tU", "🎃 U"), tF => ("tF", "🎃 F"), tK => ("tK", "🎃 K"), tT => ("tT", "🎃 T"), tA => ("tA", "🎃 A"),
+    z7 => ("z7", "🍃 7"), z8 => ("z8", "🍃 8"), z9 => ("z9", "🍃 9"), zU => ("zU", "🍃 U"), zF => ("zF", "🍃 F"), zK => ("zK", "🍃 K"), zT => ("zT", "🍃 T"), zA => ("zA", "🍃 A"),
+    m7 => ("m7", "🌰 7"), m8 => ("m8", "🌰 8"), m9 => ("m9", "🌰 9"), mU => ("mU", "🌰 U"), mF => ("mF", "🌰 F"), mK => ("mK", "🌰 K"), mT => ("mT", "🌰 T"), mA => ("mA", "🌰 A"),
+    p7 => ("p7", "❤️️ ️️7"), p8 => ("p8", "❤️️ ️️8"), p9 => ("p9", "❤️️ ️️9"), pU => ("pU", "❤️️ ️️U"), pF => ("pF", "❤️️️️ ️️F"), pK => ("pK", "❤️️ ️️K"), pT => ("pT", "❤️️ ️️T"), pA => ("pA", "❤️️ ️️A")])
 
-#overloading for comparison and sort
-function <(card1::Card, card2::Card)
-    Int(card1) < Int(card2)
+
+function show(ca::Vector{CardSet32}, io::IO=STDOUT, shortForm=false)
+    if isempty(ca) return end
+    for card in ca
+      shortForm ? print(io, deck[card][1]): print(io, deck[card][2], " ")
+    end
 end
 
-@enum(Suit,
-    t = 0, #Tök
-    z = 1, #Zöld
-    m = 2, #Makk
-    p = 3, #Piros
-    notrump = 4, #Szín nélküli (ászkirályos)
-    undecided = 5) #Még nem tudjuk (hátulról bemondott négy tízesnélÖ
+function show(cs::CardSet32, io::IO=STDOUT, shortForm=false)
+    if isempty(cs) return end
+    for card in cs
+      shortForm ? print(io, deck[card][1]): print(io, deck[card][2], " ")
+    end
+end
+
+
+typealias Suit Int
+    t = 0 #Tök
+    z = 1 #Zöld
+    m = 2 #Makk
+    p = 3 #Piros
+    notrump = 4 #Szín nélküli (ászkirályos)
+    undecided = 5 #Még nem tudjuk (hátulról bemondott négy tízesnélÖ
 const suitProperties = Dict([
     (t, (["Tök", "tok", "🎃", "t"], 3)),
     (z, (["Zöld", "zold", "🍃", "z"], 4)),
     (m, (["Makk", "🌰", "m"], 5)),
     (p, (["Piros", "❤️️", "p"], 6))]) #Halloween-kor TOK = 7 :)
 
-@enum(Face,
-    _7 = 0, #hetes
-    _8 = 1, #nyolcas
-    _9 = 2, #kilences
-    # _10 = 2.5, #tizes (szintelen jateknal)
-    U = 3, #alsó
-    F = 4, #felső
-    K = 5, #király
-    T = 6, #tízes
-    A = 7) #ász
+typealias Face Int
+    _7 = 0 #hetes
+    _8 = 1 #nyolcas
+    _9 = 2 #kilences
+    # _10 = 2.5 #tizes (szintelen jateknal)
+    U = 3 #alsó
+    F = 4 #felső
+    K = 5 #király
+    T = 6 #tízes
+    A = 7 #ász
 # const faceProperties = Dict([
 #     (_7, (["Hetes", "7"], 3)),
 # ) :)
 
 #TODO const faceProperties = Dict([(t, ("Tök", 3)), (z, ("Zöld", 4)), (m, ("Makk", 5)), (p, ("Piros", 6))]) #Halloween-kor TOK = 7 :)
 
-SuitFace(card::Card) = Suit(div(Int(card), 8)), Face(rem(Int(card), 8))
-Card(suit::Suit, face::Face) = Card(8 * Int(suit) + Int(face))
-function *(suit::Suit, face::Face)
-    Card(suit, face)
-end
+
+const suitFace = Dict([
+    t7 => (t, _7), t8 => (t, _8), t9 => (t, _9), tU => (t, U), tF => (t, F), tK => (t, K), tT => (t, T), tA => (t, A),
+    z7 => (z, _7), z8 => (z, _8), z9 => (z, _9), zU => (z, U), zF => (z, F), zK => (z, K), zT => (z, T), zA => (z, A),
+    m7 => (m, _7), m8 => (m, _8), m9 => (m, _9), mU => (m, U), mF => (m, F), mK => (m, K), mT => (m, T), mA => (m, A),
+    p7 => (p, _7), p8 => (p, _8), p9 => (p, _9), pU => (p, U), pF => (p,F), pK => (p, K), pT => (p, T), pA => (p, A),
+    (t, _7) => t7, (t, _8) => t8, (t, _9) => t9, (t, U) => tU, (t, F) => tF, (t, K) => tK, (t, T) => tT, (t, A) => tA,
+    (z, _7) => z7, (z, _8) => z8, (z, _9) => z9, (z, U) => zU, (z, F) => zF, (z, K) => zK, (z, T) => zT, (z, A) => zA,
+    (m, _7) => m7, (m, _8) => m8, (m, _9) => m9, (m, U) => mU, (m, F) => mF, (m, K) => mK, (m, T) => mT, (m, A) => mA,
+    (p, _7) => p7, (p, _8) => p8, (p, _9) => p9, (p, U) => pU, (p, F) => pF, (p, K) => pK, (p, T) => pT, (p, A) => pA])
+
+
+SuitFace(card::Card) = suitFace[card]
+Card(suit::Suit, face::Face) = suitFace[(suit, face)]
 
 #compare two cards using the trump suit
 function trumps(card1::Card, card2::Card, trump::Suit)
@@ -72,56 +125,71 @@ function trumps(card1::Card, card2::Card, trump::Suit)
     if suit1 != suit2
         return suit1 == trump
     else
-        face1 = Int(face1)
-        face2 = Int(face2)
+        face1 = face1
+        face2 = face2
         if trump == notrump #szintelen jateknal a tizes alulra megy, a kilences es az also koze
-            if Int(_9) < face1 != Int(T) face1 += 4 end #UFK a T fole
-            if Int(_9) < face2 != Int(T) face2 += 4 end #UFK a T fole
+            if _9 < face1 != T face1 += 4 end #UFK a T fole
+            if _9 < face2 != T face2 += 4 end #UFK a T fole
         end
         return face1 > face2
     end
 end
 
 #compare one card to a set using the trump suit
-function trumps(card1::Card, cards::Array{Card, 1}, trump::Suit)
+@memoize Dict function trumpsAll(card1::Card, cards::CardSet32, trump::Suit)
     for card in cards
         if trumps(card, card1, trump) return false end
     end
     return true #no card trumped me
 end
 
-#returns the index of the largest card in a set using the trump suit
-function largestCard(cards::Array{Card,1}, trump::Suit)
-    assert(length(cards) > 0)
-    if length(cards) == 1 return 1 end
-    for i in 1:(length(cards) - 1) #TODO iterator
-        if trumps(cards[i], cards[i + 1:end], trump)
-            return i
+largerThan = Dict{Tuple{Card, Suit}, CardSet32}()
+for (card1, x) in deck
+    for (card2, x) in deck
+        for trump in [t, z, m, p, notrump]
+            if !haskey(largerThan, (card1, trump)) 
+                largerThan[(card1, trump)] = CardSet32()
+            end
+            if trumps(card2, card1, trump)
+                largerThan[(card1, trump)] = union(card2, largerThan[(card1, trump)])
+            end
         end
     end
-    assert(trumps(cards[end], cards[1:end-1], trump))
-    return length(cards) #last one
+end
+function whichTrumps(cards::CardSet32, card::Card, trump::Suit)
+    intersect(cards, largerThan[(card, trump)])
+end
+
+#returns the largest card in a set using the trump suit
+@memoize Dict function largestCard(cards::CardSet32, trump::Suit)
+    assert(length(cards) > 0)
+    if length(cards) == 1 return cards end
+    for card in cards
+        if trumpsAll(card, setdiff(cards, card), trump)
+            return card
+        end
+    end
 end
 
 
 #Bemondasok
 # abban a sorrendben, ahogy egymashoz fuzik oket (ulti-repulo-40_100-negyAsz-durchmars)
-@enum(AlapBemondas,
-    semmi = 0, #amig nincs semmi
-    ulti = 1,
-    repulo = 2,
-    negyvenSzaz = 3,
-    huszSzaz = 4,
-    negyAsz = 5,
-    durchmars = 6,
-    redurchmars = 7,
-    parti = passz = 8,
-    betli = 9,
-    rebetli = 10,
-    negyTizes = 11,
-    csendesUlti = 12,
-    csendesDuri = 13,
-    )
+typealias AlapBemondas Int
+    semmi = 0 #amig nincs semmi
+    ulti = 1
+    repulo = 2
+    negyvenSzaz = 3
+    huszSzaz = 4
+    negyAsz = 5
+    durchmars = 6
+    redurchmars = 7
+    parti = passz = 8
+    betli = 9
+    rebetli = 10
+    negyTizes = 11
+    csendesUlti = 12
+    csendesDuri = 13
+    
 #Bemondasok erteke es nevei (elso nev lesz kiirva)
 const alapBemondasProperties = Dict([
   (semmi,       (0, ["", "semmi"])),
@@ -139,11 +207,11 @@ const alapBemondasProperties = Dict([
 ])
 
 #Modosito szorzok elolrol bemondott vagy ramondott bemondasokra
-@enum(Modosito,
-    elolrol =  4,
-    ramondva = 2,
-    hatulrol = 1,
-)
+typealias Modosito Int
+    elolrol =  4
+    ramondva = 2
+    hatulrol = 1
+
 const modositoProperties = Dict([
   (elolrol,  ["Elölről",  "Elolrol",  "E"]),
   (ramondva, ["Rámondva", "ramondva", "R"]),
@@ -151,10 +219,10 @@ const modositoProperties = Dict([
 ])
 
 
-@enum(Kontra,
-    EK = 4,
-    HK = 2,
-)
+typealias Kontra Int
+    EK = 4
+    HK = 2
+
 const kontraProperties = Dict([
   (EK, ["Elölről kontra",  "EK"]),
   (EK, ["Hátulról kontra", "HK"]),
