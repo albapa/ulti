@@ -277,6 +277,8 @@ function isRepulo(contract::Contract)
     return false
 end
 
+isUltiRepulo(contract::Contract) = isUlti(contract) && isRepulo(contract)
+
 contractValues = Dict{Tuple{Suit,AlapBemondas,Modosito}, Int}()
 #TODO mit lehet elolrol hatulrol es ramondva bemondani
 #szines bemondasok
