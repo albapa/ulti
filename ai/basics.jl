@@ -3,13 +3,9 @@
 ##############
 include("IntSet32.jl")
 using Memoize
-import Base: show, <, *, copy
+import Base: show, <, copy
 DEBUG = true
 UNSAFE = false #assert, type safety, etc. off
-
-#TODO performance optimisations: card sets are UInt32s and cards are 
-#sets of 1, eg pA = 0x00000001 << 31. Everything is a cardset. Stuff is memoized.
-#move is "cs & !card" to remove, "cs | card" to add <<<for adventorous ones xor>>>
 
 #The 32 Cards
 #Tok 7es-tol (t7) piros Aszig (pA).
@@ -135,14 +131,6 @@ function trumps(card1::Card, card2::Card, trump::Suit)
     end
 end
 
-#compare one card to a set using the trump suit
-@memoize Dict function trumpsAll(card1::Card, cards::CardSet32, trump::Suit)
-    for card in cards
-        if trumps(card, card1, trump) return false end
-    end
-    return true #no card trumped me
-end
-
 #support structure for trumping
 largerThan = Dict{Tuple{Card, Suit}, CardSet32}()
 for (card1, x) in deck
@@ -162,16 +150,32 @@ function whichTrumps(cards::CardSet32, card::Card, trump::Suit)
 end
 
 #returns the largest card in a set using the trump suit
-@memoize Dict function largestCard(cards::CardSet32, trump::Suit)
+@memoize Dict function largestCard(cards::CardSet32, trump::Suit, suit::Suit=trump) #TODO add currentSuit handling
     assert(length(cards) > 0)
+
     if length(cards) == 1 return cards end
-    for card in cards
-        if trumpsAll(card, setdiff(cards, card), trump)
+    card = first(cards)
+    largerThanFirst = whichTrumps(cards, card, trump)
+    if isempty(largerThanFirst) 
+        if trumpsAll(card, setdiff(cards, card), trump) #if we have no trump, there is no largest card
             return card
+        else
+            throw(ArgumentError("no largest card in set - define suit!"))
+            # return CardSet32()
         end
+    else
+        return largestCard(largerThanFirst, trump)
     end
 end
 
+#compare one card to a set using the trump suit
+@memoize Dict function trumpsAll(card1::Card, cards::CardSet32, trump::Suit) 
+    for card in cards
+        if trumps(card, card1, trump) return false end
+    end
+    return true #no card trumped me
+    # isempty(intersect(cards, largerThan[(card1, trump)])) #problem: suit (mA does not trump zT if trump is p)
+end
 
 #Bemondasok
 # abban a sorrendben, ahogy egymashoz fuzik oket (ulti-repulo-40_100-negyAsz-durchmars)

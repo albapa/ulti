@@ -405,8 +405,7 @@ function validMoves(g)
         assert(g.currentSuit != undecided)
         enSuit = sameSuit(valid, g.currentSuit)
         if length(enSuit) > 0
-            largest = largestCard(g.asztal, g.contract.suit)
-            if g.currentSuit != g.contract.suit && SuitFace(largest)[1] == g.contract.suit #ha mar aduval utottek nem kell felul utni
+            if g.currentSuit != g.contract.suit && !isempty(aduk(g.asztal, g.contract.suit)) #ha mar aduval utottek nem kell felul utni
                 valid = enSuit
             else
                 largestEnSuite = largestCard(g.asztal, g.currentSuit) #best in suite - ezt kell felulutni

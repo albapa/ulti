@@ -1,6 +1,6 @@
 # This file was a part of Julia. License is MIT: http://julialang.org/license
 
-import Base: similar, copy, copy!, eltype, push!, pop!, delete!, shift!,
+import Base: AbstractSet, similar, copy, copy!, eltype, push!, pop!, delete!, shift!,
              empty!, isempty, union, union!, intersect, intersect!,
              setdiff, setdiff!, symdiff, symdiff!, in, start, next, done,
              last, length, show, hash, issubset, ==, <=, <, unsafe_getindex,
@@ -11,7 +11,7 @@ else
     import Base: complement, complement!
 end
 
-immutable CardSet32
+immutable CardSet32 <: AbstractSet
     cs::UInt32
 end
 
@@ -32,6 +32,8 @@ const emptyCardSet32 = CardSet32()
 function <(cs1::Card, cs2::Card)
     cs1.cs < cs2.cs
 end
+
+eltype(cs1::CardSet32) = UInt32
 
 union(cs1::CardSet32, cs2::CardSet32) = CardSet32(cs1.cs | cs2.cs)
 union(cs1::CardSet32, css...) = union(cs1, union(css...))
@@ -87,4 +89,14 @@ function next(cs1::CardSet32, state::CardSet32_iterstate)
     leadzeros = leading_zeros(state[1])
     nextValue = state[2] >>> leadzeros
     return (CardSet32(nextValue), (state[1] << (leadzeros + 1), nextValue >>> 1))
+end
+
+function first(cs1::CardSet32)
+    isempty(cs1) && throw(ArgumentError("collection must be non-empty"))
+    CardSet32(0x80000000 >>> leading_zeros(cs1.cs))
+end
+
+function last(cs1::CardSet32)
+    isempty(cs1) && throw(ArgumentError("collection must be non-empty"))
+    CardSet32(0x00000001 << trailing_zeros(cs1.cs))
 end
