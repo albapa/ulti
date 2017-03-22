@@ -27,7 +27,7 @@ adu7(g::GameState) = Card(g.contract.suit, _7)
 extendStreak(result, streak, card) = (result, union(streak, card))
 breakStreak(result, streak, card, inV) = (union(result, pickFromStreak(streak)), inV ? card : CardSet32())
 
-#BUG TODO: check 494c2399f96cc0af5508336cab0f7415b5708f44 vs. master 2x time and abN
+#BUG TODO: check 494c2399f96cc0af5508336cab0f7415b5708f44 vs. d51d5d75f51ee3a1ada61c989eccfaa7df8bc0e3 2x time and abN
 function removeNeighbours(g::GameState, vm::CardSet32)
     if length(vm) <= 1 return vm end
     
@@ -42,7 +42,7 @@ function removeNeighbours(g::GameState, vm::CardSet32)
         if card in vm
             if !(card in AT) && hanyAT(streak) > 1 || #tizes es nemtizes
                     !sameSuit(card, streak, suitof(card)) || #mas szin
-                    isUltiRepulo(g.contract) && (card == adu7(g) && adu8(g) in streak) #adu 8-7 - mindketto fontos
+                    card == adu7(g)  #adu7 tori, mert 1. adu 8-7 - mindketto fontos 2. csendesultinal szamit | Note: 8-as nem, mert ugysem fordul elo, hogy 8-9 teheto
 
                 (result, streak) = breakStreak(result, streak, card, true)
             else
