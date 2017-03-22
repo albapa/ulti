@@ -31,13 +31,13 @@ function alfabeta(g::GameState, depth::Int, α::Int, β::Int)
     if  g.currentPlayer == p1
         for card in validMoves(g)
             #create new state
-            gNew = newState(g, Card(card))
+            gNew = newState(g, card)
 
             α = max(α, alfabeta(gNew, depth-1, α, β))
 
             # #DEBUG
             if depth > -2
-                moves[Card(card)] = α
+                moves[card] = α
             end
             # #END DEBUG
 
@@ -49,7 +49,7 @@ function alfabeta(g::GameState, depth::Int, α::Int, β::Int)
     else
         for card in validMoves(g)
             #create new state
-            gNew = newState(g, Card(card))
+            gNew = newState(g, card)
 
             # #DEBUG
             # print(g)

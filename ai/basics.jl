@@ -143,6 +143,7 @@ end
     return true #no card trumped me
 end
 
+#support structure for trumping
 largerThan = Dict{Tuple{Card, Suit}, CardSet32}()
 for (card1, x) in deck
     for (card2, x) in deck
