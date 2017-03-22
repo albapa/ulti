@@ -111,6 +111,8 @@ const suitFace = Dict([
 
 
 SuitFace(card::Card) = suitFace[card]
+suitof(card::Card) = suitFace[card][1]
+faceof(card::Card) = suitFace[card][2]
 # Card(suit::Suit, face::Face) = suitFace[(suit, face)]
 Card(suit::Suit, face::Face) = intersect(suit, face)
 

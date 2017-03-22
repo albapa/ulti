@@ -46,6 +46,7 @@ hanyTizes(ca::Vector{Card}) = hanyTizes(CardSet(ca))
 hanyAT(cs::CardSet) = length(intersect(cs, AT))
 hanyAT(ca::Vector{Card}) = hanyAT(CardSet(ca))
 sameSuit(cs::CardSet, suit::Suit) = intersect(cs, suit)
+sameSuit(cs1::CardSet, cs2::CardSet, suit::Suit) = union(cs1, cs2) in suit
 function sameSuitLarger(cs::CardSet, suit::Suit, card::Card)
 #TODO - supporting structure?
 end
@@ -471,6 +472,8 @@ function newState(gOld::GameState, negyven::Int, husz::Int)
 end
 
 function newState(g::GameState, card::Card)
+    assert(length(card) == 1)
+
     #copy them one by one, change and reconstruct - poor man's update for immutables
     contract=g.contract; pakli=g.pakli; asztal=g.asztal; talon=g.talon;
     currentPlayer=g.currentPlayer; currentSuit=g.currentSuit; whoseTrick=g.whoseTrick; 
