@@ -39,26 +39,17 @@ import Base: copy, union, in, intersect
 
 typealias CardSet CardSet32
 
-const tizesek = CardSet([tT, zT, mT, pT])
-const aszok = CardSet([tA, zA, mA, pA])
-const AT = union(tizesek, aszok)
-const szinek = Dict(
-  t => CardSet([t7,t8,t9,tU,tF,tK,tT,tA]),
-  z => CardSet([z7,z8,z9,zU,zF,zK,zT,zA]),
-  m => CardSet([m7,m8,m9,mU,mF,mK,mT,mA]),
-  p => CardSet([p7,p8,p9,pU,pF,pK,pT,pA]),
-)
-hanyAsz(cs::CardSet) = length(intersect(cs, aszok))
+hanyAsz(cs::CardSet) = length(intersect(cs, A))
 hanyAsz(ca::Vector{Card}) = hanyAsz(CardSet(ca))
-hanyTizes(cs::CardSet) = length(intersect(cs, tizesek))
+hanyTizes(cs::CardSet) = length(intersect(cs, T))
 hanyTizes(ca::Vector{Card}) = hanyTizes(CardSet(ca))
 hanyAT(cs::CardSet) = length(intersect(cs, AT))
 hanyAT(ca::Vector{Card}) = hanyAT(CardSet(ca))
-sameSuit(cs::CardSet, suit::Suit) = intersect(cs, szinek[suit])
+sameSuit(cs::CardSet, suit::Suit) = intersect(cs, suit)
 function sameSuitLarger(cs::CardSet, suit::Suit, card::Card)
 #TODO - supporting structure?
 end
-aduk(cs::CardSet, adu::Suit) = intersect(cs, szinek[adu])
+aduk(cs::CardSet, adu::Suit) = intersect(cs, adu)
 
 #Players
 typealias Player Int
@@ -140,7 +131,7 @@ immutable GameState
     #default constructor
     function GameState(contract::Contract, pakli::CardSet, asztal::CardSet,
         talon::CardSet, playerStates::Tuple{PlayerState,PlayerState,PlayerState}, 
-        currentPlayer::Player=p1, currentSuit::Suit=undecided, whoseTrick::Player=pX, 
+        currentPlayer::Player=p1, currentSuit::Suit=nosuit, whoseTrick::Player=pX, 
         lastTrick::Player = pX , lastTrick7::Player = pX,
         butLastTrick8::Player = pX , adu7kiment=false, adu8kiment=false,
         lastTrickFogottUlti::Player=pX, tricks::Int = 0, felvevoTricks = 0, ellenvonalTricks = 0,
@@ -203,8 +194,8 @@ function parseCards(s::String)
     collections = split(s, ['|', '/'])
     for collection in collections
         for c in collection
-            suit = undecided
-                if suit == undecided #look for first suit
+            suit = nosuit
+                if suit == nosuit #look for first suit
                     #TODO
                 end
         end
@@ -216,13 +207,13 @@ function parseCards(s::String)
 end
 
 function ps(g::GameState, player::Player)
-    return g.playerStates[Int(player)]
+    return g.playerStates[player]
 end
 
 #Evaluate the score based on the game state
 #if the game is over, it returns the final score
 #otherwise the sum of contracts that have been decided
-#undecided contracts yield 0
+#nosuit contracts yield 0
 #TODO instead of Int, return (10,-5,-5) for proper handling of csendesUlti and csendesDuri
 function score(g::GameState, ce::ContractElement)
     if ce.bem == parti
@@ -402,7 +393,7 @@ function validMoves(g)
 
     #sorrend: felulutni szinbol, szin, felulutni adu, adu, egyeb
     if length(g.asztal) > 0 #mar van egy szin
-        assert(g.currentSuit != undecided)
+        assert(g.currentSuit != nosuit)
         enSuit = sameSuit(valid, g.currentSuit)
         if length(enSuit) > 0
             if g.currentSuit != g.contract.suit && !isempty(aduk(g.asztal, g.contract.suit)) #ha mar aduval utottek nem kell felul utni
@@ -413,7 +404,7 @@ function validMoves(g)
                 valid = length(enSuitLarger) > 0 ? enSuitLarger : enSuit
             end
         elseif g.contract.suit <= p #szines jatek -> adu?
-            myTrumps = intersect(szinek[g.contract.suit], valid) #ha nincs szin adu
+            myTrumps = intersect(g.contract.suit, valid) #ha nincs szin adu
             if length(myTrumps) > 0 #nincs szin de van adu
                 largest = largestCard(g.asztal, g.contract.suit)
                 valid = myTrumps
@@ -450,7 +441,7 @@ end
 function negyvenHusz(ps::PlayerState, trump::Suit)
     negyven = husz = 0
     for suit in [t,z,m,p]
-        if issubset(CardSet([Card(suit, F), Card(suit, K)]), ps.hand)
+        if issubset(union(Card(suit, F), Card(suit, K)), ps.hand)
             if suit == trump negyven += 1
             else husz +=1
             end
@@ -562,7 +553,7 @@ function newState(g::GameState, card::Card)
         playerStates[whoseTrick] = newDiscard(playerStates[whoseTrick], discard)
         asztal = CardSet()
 
-        currentSuit = undecided
+        currentSuit = nosuit
         currentPlayer = whoseTrick
         whoseTrick = pX
 

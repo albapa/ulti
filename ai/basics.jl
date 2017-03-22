@@ -11,41 +11,41 @@ UNSAFE = false #assert, type safety, etc. off
 #Tok 7es-tol (t7) piros Aszig (pA).
 #Note: az also U, mint "Unter Knabe" from the original German deck
 
-t7 = CardSet32(UInt32(1) << 0)
-t8 = CardSet32(UInt32(1) << 1)
-t9 = CardSet32(UInt32(1) << 2)
-tU = CardSet32(UInt32(1) << 3)
-tF = CardSet32(UInt32(1) << 4)
-tK = CardSet32(UInt32(1) << 5)
-tT = CardSet32(UInt32(1) << 6)
-tA = CardSet32(UInt32(1) << 7)
+const t7 = CardSet32(UInt32(1) << 0)
+const t8 = CardSet32(UInt32(1) << 1)
+const t9 = CardSet32(UInt32(1) << 2)
+const tU = CardSet32(UInt32(1) << 3)
+const tF = CardSet32(UInt32(1) << 4)
+const tK = CardSet32(UInt32(1) << 5)
+const tT = CardSet32(UInt32(1) << 6)
+const tA = CardSet32(UInt32(1) << 7)
 
-z7 = CardSet32(UInt32(1) << 8 )
-z8 = CardSet32(UInt32(1) << 9 )
-z9 = CardSet32(UInt32(1) << 10)
-zU = CardSet32(UInt32(1) << 11)
-zF = CardSet32(UInt32(1) << 12)
-zK = CardSet32(UInt32(1) << 13)
-zT = CardSet32(UInt32(1) << 14)
-zA = CardSet32(UInt32(1) << 15)
+const z7 = CardSet32(UInt32(1) << 8 )
+const z8 = CardSet32(UInt32(1) << 9 )
+const z9 = CardSet32(UInt32(1) << 10)
+const zU = CardSet32(UInt32(1) << 11)
+const zF = CardSet32(UInt32(1) << 12)
+const zK = CardSet32(UInt32(1) << 13)
+const zT = CardSet32(UInt32(1) << 14)
+const zA = CardSet32(UInt32(1) << 15)
 
-m7 = CardSet32(UInt32(1) << 16)
-m8 = CardSet32(UInt32(1) << 17)
-m9 = CardSet32(UInt32(1) << 18)
-mU = CardSet32(UInt32(1) << 19)
-mF = CardSet32(UInt32(1) << 20)
-mK = CardSet32(UInt32(1) << 21)
-mT = CardSet32(UInt32(1) << 22)
-mA = CardSet32(UInt32(1) << 23)
+const m7 = CardSet32(UInt32(1) << 16)
+const m8 = CardSet32(UInt32(1) << 17)
+const m9 = CardSet32(UInt32(1) << 18)
+const mU = CardSet32(UInt32(1) << 19)
+const mF = CardSet32(UInt32(1) << 20)
+const mK = CardSet32(UInt32(1) << 21)
+const mT = CardSet32(UInt32(1) << 22)
+const mA = CardSet32(UInt32(1) << 23)
 
-p7 = CardSet32(UInt32(1) << 24)
-p8 = CardSet32(UInt32(1) << 25)
-p9 = CardSet32(UInt32(1) << 26)
-pU = CardSet32(UInt32(1) << 27)
-pF = CardSet32(UInt32(1) << 28)
-pK = CardSet32(UInt32(1) << 29)
-pT = CardSet32(UInt32(1) << 30)
-pA = CardSet32(UInt32(1) << 31)
+const p7 = CardSet32(UInt32(1) << 24)
+const p8 = CardSet32(UInt32(1) << 25)
+const p9 = CardSet32(UInt32(1) << 26)
+const pU = CardSet32(UInt32(1) << 27)
+const pF = CardSet32(UInt32(1) << 28)
+const pK = CardSet32(UInt32(1) << 29)
+const pT = CardSet32(UInt32(1) << 30)
+const pA = CardSet32(UInt32(1) << 31)
 
 const deck = Dict([
     t7 => ("t7", "🎃 7"), t8 => ("t8", "🎃 8"), t9 => ("t9", "🎃 9"), tU => ("tU", "🎃 U"), tF => ("tF", "🎃 F"), tK => ("tK", "🎃 K"), tT => ("tT", "🎃 T"), tA => ("tA", "🎃 A"),
@@ -69,29 +69,29 @@ function show(cs::CardSet32, io::IO=STDOUT, shortForm=false)
 end
 
 
-typealias Suit Int
-    t = 0 #Tök
-    z = 1 #Zöld
-    m = 2 #Makk
-    p = 3 #Piros
-    notrump = 4 #Szín nélküli (ászkirályos)
-    undecided = 5 #Még nem tudjuk (hátulról bemondott négy tízesnélÖ
+typealias Suit CardSet32
+    const t = union(t7,t8,t9,tU,tF,tK,tT,tA) #Tök
+    const z = union(z7,z8,z9,zU,zF,zK,zT,zA) #Zöld
+    const m = union(m7,m8,m9,mU,mF,mK,mT,mA) #Makk
+    const p = union(p7,p8,p9,pU,pF,pK,pT,pA) #Piros
+    const nosuit = CardSet32() #Szín nélküli (ászkirályos) vagy még nem tudjuk (pl. hátulról bemondott négy tízesnélÖ
 const suitProperties = Dict([
-    (t, (["Tök", "tok", "🎃", "t"], 3)),
+    (t, (["Tök", "tok", "🎃", "t"], 3)), #Halloween-kor TOK = 7 :)
     (z, (["Zöld", "zold", "🍃", "z"], 4)),
     (m, (["Makk", "🌰", "m"], 5)),
-    (p, (["Piros", "❤️️", "p"], 6))]) #Halloween-kor TOK = 7 :)
+    (p, (["Piros", "❤️️", "p"], 6)), 
+    (nosuit, (["Színtelen", "nosuit", "sz"], 0))]) 
 
-typealias Face Int
-    _7 = 0 #hetes
-    _8 = 1 #nyolcas
-    _9 = 2 #kilences
-    # _10 = 2.5 #tizes (szintelen jateknal)
-    U = 3 #alsó
-    F = 4 #felső
-    K = 5 #király
-    T = 6 #tízes
-    A = 7 #ász
+typealias Face CardSet32
+    const _7 = union(t7, z7, m7, p7) #hetes
+    const _8 = union(t8, z8, m8, p8) #nyolcas
+    const _9 = union(t9, z9, m9, p9) #kilences
+    const U  = union(tU, zU, mU, pU) #alsó
+    const F  = union(tF, zF, mF, pF) #felső
+    const K  = union(tK, zK, mK, pK) #király
+    const T  = union(tT, zT, mT, pT) #tízes
+    const A  = union(tA, zA, mA, pA) #ász
+    const AT = union(T, A)
 # const faceProperties = Dict([
 #     (_7, (["Hetes", "7"], 3)),
 # ) :)
@@ -111,23 +111,24 @@ const suitFace = Dict([
 
 
 SuitFace(card::Card) = suitFace[card]
-Card(suit::Suit, face::Face) = suitFace[(suit, face)]
+# Card(suit::Suit, face::Face) = suitFace[(suit, face)]
+Card(suit::Suit, face::Face) = intersect(suit, face)
 
 #compare two cards using the trump suit
-function trumps(card1::Card, card2::Card, trump::Suit)
+@memoize Dict function trumps(card1::Card, card2::Card, trump::Suit)
     suit1, face1 = SuitFace(card1)
     suit2, face2 = SuitFace(card2)
 
     if suit1 != suit2
         return suit1 == trump
     else
-        face1 = face1
-        face2 = face2
-        if trump == notrump #szintelen jateknal a tizes alulra megy, a kilences es az also koze
-            if _9 < face1 != T face1 += 4 end #UFK a T fole
-            if _9 < face2 != T face2 += 4 end #UFK a T fole
+        face1 = UInt64(face1.cs) #to make sure the <<= will not overflow
+        face2 = UInt64(face2.cs) 
+        if trump == nosuit #szintelen jateknal a tizes alulra megy, a kilences es az also koze
+            if UInt64(_9.cs) < face1 != T face1 <<= 4 end #UFK a T fole, A meg feljebb
+            if UInt64(_9.cs) < face2 != T face2 <<= 4 end #UFK a T fole, A meg feljebb
         end
-        return face1 > face2
+        return face1 > face2 #MSBs are larger
     end
 end
 
@@ -135,7 +136,7 @@ end
 largerThan = Dict{Tuple{Card, Suit}, CardSet32}()
 for (card1, x) in deck
     for (card2, x) in deck
-        for trump in [t, z, m, p, notrump]
+        for trump in [t, z, m, p, nosuit]
             if !haskey(largerThan, (card1, trump)) 
                 largerThan[(card1, trump)] = CardSet32()
             end
@@ -290,9 +291,9 @@ for suit in [t,z,m,p]
     contractValues[(suit, negyTizes, hatulrol)] = 55
 end
 #szintelen bemondasok
-contractValues[(undecided, negyTizes, hatulrol)] = 55
-contractValues[(notrump, betli, hatulrol)] = 30
-contractValues[(notrump, redurchmars, hatulrol)] = 144
+contractValues[(nosuit, negyTizes, hatulrol)] = 55 #TODO: has to be declared and set later
+contractValues[(nosuit, betli, hatulrol)] = 30
+contractValues[(nosuit, redurchmars, hatulrol)] = 144
 
 #all the strings needed for parsing lookups
 # parseTokens = Vector()
