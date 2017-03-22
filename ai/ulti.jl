@@ -30,7 +30,7 @@ g = GameState(
   p1 #current player
 )
 
-
+# g=newState(g, rand(rng, validMoves(g)))
 # alfabeta(g, -1, -typemin(Int), typemax(Int))
 # alfabeta(g, -1, -g.contract.totalvalue, g.contract.totalvalue)
 

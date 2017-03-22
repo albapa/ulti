@@ -243,7 +243,7 @@ function score(g::GameState, ce::ContractElement)
 
     elseif ce.bem == ulti
         if g.lastTrick7 == p1 return ce.val end #megvan
-        if g.tricks == 10 || (g.tricks < 9 && g.adu7kiment!=pX) #TODO fix
+        if g.tricks == 10 || (g.tricks < 9 && g.adu7kiment!=pX) || (g.tricks == 9 && g.adu7kiment!=pX && !in(Card(g.contract.suit, _7), g.asztal))#TODO fix
             if ce.modosito == elolrol return -ce.val end #elolrol szimplan bukik
             if isempty(ce.kon) return -2 * ce.val end #hatulrol duplan bukik #TODO kiveve ha nem volt ott a hetes
             return -3 * div(ce.val, 2) #hatulrol kotraval triplan bukik, rekontraval 6x, stb.
@@ -382,7 +382,7 @@ function show(io::IO, g::GameState)
     # print(io, "\nadu: $(g.contract.suit)")
     print(io, "\nFelvevő    Tízesek:$(g.felvevoTizesek)    Összes:$(g.felvevoOsszes)    Ütések:$(g.felvevoTricks)")
     print(io, "\nEllenvonal Tízesek:$(g.ellenvonalTizesek)    Összes:$(g.ellenvonalOsszes)    Ütések:$(g.ellenvonalTricks)")
-    print(io, "\nUtolsó ütés:$(g.lastTrick)    adu 7 utolsó:$(g.lastTrick7)    adu 8 utolsó előtti:$(g.butLastTrick8)    csendes ulti bukott:$(g.lastTrickFogottUlti) \nadu 7 kiment:$(playerNames[g.adu7kiment]) adu 8 kiment:$(playerNames[g.adu8kiment])")
+    print(io, "\nUtolsó ütés:$(playerNames[g.lastTrick])    adu 7 utolsó:$(playerNames[g.lastTrick7])    adu 8 utolsó előtti:$(playerNames[g.butLastTrick8])    csendes ulti bukott:$(playerNames[g.lastTrickFogottUlti]) \nadu 7 kiment:$(playerNames[g.adu7kiment]) adu 8 kiment:$(playerNames[g.adu8kiment])")
 end
 
 #The valid card to play in this trick (if there is already a card on the table)

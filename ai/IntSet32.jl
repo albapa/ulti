@@ -4,7 +4,7 @@ import Base: AbstractSet, similar, copy, copy!, eltype, push!, pop!, delete!, sh
              empty!, isempty, union, union!, intersect, intersect!,
              setdiff, setdiff!, symdiff, symdiff!, in, start, next, done,
              last, length, show, hash, issubset, ==, <=, <, unsafe_getindex,
-             unsafe_setindex!, findnextnot, first
+             unsafe_setindex!, findnextnot, first, getindex, rand
 if !isdefined(Base, :complement)
     export complement, complement!
 else
@@ -99,4 +99,20 @@ end
 function last(cs1::CardSet32)
     isempty(cs1) && throw(ArgumentError("collection must be non-empty"))
     CardSet32(0x00000001 << trailing_zeros(cs1.cs))
+end
+
+function getindex(cs1::CardSet32, index::Int)
+    if  index <= 0 || index > length(cs1) throw(BoundsError("index out of bounds")) end
+    state = start(cs1)
+    val = CardSet32()
+    for i in 1:index
+        (val, state) = next(cs1, state)
+    end
+    return val
+end
+
+#pick a random card
+function rand(rng::AbstractRNG, cs1::CardSet32)
+    cs1[rand(rng, 1:length(cs1))]
+    # rand(rng, toArray(cs1)) #TODO more efficiency: make set indexible by getindex
 end
