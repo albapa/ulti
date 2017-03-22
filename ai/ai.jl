@@ -27,6 +27,7 @@ adu7(g::GameState) = Card(g.contract.suit, _7)
 extendStreak(result, streak, card) = (result, union(streak, card))
 breakStreak(result, streak, card, inV) = (union(result, pickFromStreak(streak)), inV ? card : CardSet32())
 
+#BUG TODO: check 494c2399f96cc0af5508336cab0f7415b5708f44 vs. master 2x time and abN
 function removeNeighbours(g::GameState, vm::CardSet32)
     if length(vm) <= 1 return vm end
     
