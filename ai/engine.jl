@@ -69,8 +69,8 @@ const playerNames = Dict([
     (p6, "Tétova"),
     (pX, ""), ]) #barmelyik jatekos (null)
 
-nextPlayer(pl::Player) = Player(Int(pl) % 3 + 1)
-nextPlayer(pl::Player, offset::Int) = Player(mod(Int(pl) - 1 + offset, 3) + 1)
+nextPlayer(pl::Player) = Player(pl % 3 + 1)
+nextPlayer(pl::Player, offset::Int) = Player(mod(pl - 1 + offset, 3) + 1)
 previousPlayer(pl::Player) = nextPlayer(pl, -1)
 # const FELVEVO = p1
 # const ELLENVONAL = [p2, p3]
@@ -117,8 +117,8 @@ immutable GameState
     lastTrick::Player       #utolso utes
     lastTrick7::Player      #utolso utes adu hetessel
     butLastTrick8::Player   #utolso elotti utes adu 8-assal
-    adu7kiment::Bool
-    adu8kiment::Bool
+    adu7kiment::Player
+    adu8kiment::Player
     lastTrickFogottUlti::Player #elbukta a (csendes) ultit
     tricks::Int             #number of tricks
     felvevoTricks::Int      #number of tricks
@@ -133,7 +133,7 @@ immutable GameState
         talon::CardSet, playerStates::Tuple{PlayerState,PlayerState,PlayerState}, 
         currentPlayer::Player=p1, currentSuit::Suit=nosuit, whoseTrick::Player=pX, 
         lastTrick::Player = pX , lastTrick7::Player = pX,
-        butLastTrick8::Player = pX , adu7kiment=false, adu8kiment=false,
+        butLastTrick8::Player = pX , adu7kiment::Player=pX, adu8kiment::Player=pX,
         lastTrickFogottUlti::Player=pX, tricks::Int = 0, felvevoTricks = 0, ellenvonalTricks = 0,
         felvevoTizesek::Int=0, ellenvonalTizesek::Int=0, felvevoOsszes::Int=0, ellenvonalOsszes::Int=0)
 
@@ -216,6 +216,7 @@ end
 #nosuit contracts yield 0
 #TODO instead of Int, return (10,-5,-5) for proper handling of csendesUlti and csendesDuri
 function score(g::GameState, ce::ContractElement)
+    #TODO: maybe check after full tricks only?
     if ce.bem == parti
         if  g.felvevoOsszes >=100 && g.felvevoTizesek > 0 #ha szaz van nyertunk de egy tizes mindig kell
             return 2 * ce.val #szazzal van meg
@@ -242,7 +243,7 @@ function score(g::GameState, ce::ContractElement)
 
     elseif ce.bem == ulti
         if g.lastTrick7 == p1 return ce.val end #megvan
-        if g.tricks == 10 || (g.tricks < 9 && g.adu7kiment) #TODO fix
+        if g.tricks == 10 || (g.tricks < 9 && g.adu7kiment!=pX) #TODO fix
             if ce.modosito == elolrol return -ce.val end #elolrol szimplan bukik
             if isempty(ce.kon) return -2 * ce.val end #hatulrol duplan bukik #TODO kiveve ha nem volt ott a hetes
             return -3 * div(ce.val, 2) #hatulrol kotraval triplan bukik, rekontraval 6x, stb.
@@ -251,7 +252,7 @@ function score(g::GameState, ce::ContractElement)
 
     elseif ce.bem == repulo
         if g.butLastTrick8 == p1 return ce.val end #megvan
-        if g.tricks >= 9 || (g.tricks < 8 && g.adu8kiment) return -ce.val end #bukott
+        if g.tricks >= 9 || (g.tricks < 8 && g.adu8kiment!=pX) return -ce.val end #bukott
         return 0    #meg nem tudjuk
 
     elseif ce.bem == negyvenSzaz
@@ -381,7 +382,7 @@ function show(io::IO, g::GameState)
     # print(io, "\nadu: $(g.contract.suit)")
     print(io, "\nFelvevő    Tízesek:$(g.felvevoTizesek)    Összes:$(g.felvevoOsszes)    Ütések:$(g.felvevoTricks)")
     print(io, "\nEllenvonal Tízesek:$(g.ellenvonalTizesek)    Összes:$(g.ellenvonalOsszes)    Ütések:$(g.ellenvonalTricks)")
-    print(io, "\nUtolsó ütés:$(g.lastTrick)    adu 7 utolsó:$(g.lastTrick7)    adu 8 utolsó előtti:$(g.butLastTrick8)    csendes ulti bukott:$(g.lastTrickFogottUlti) \nadu 7 kiment:$(g.adu7kiment) adu 8 kiment:$(g.adu8kiment)")
+    print(io, "\nUtolsó ütés:$(g.lastTrick)    adu 7 utolsó:$(g.lastTrick7)    adu 8 utolsó előtti:$(g.butLastTrick8)    csendes ulti bukott:$(g.lastTrickFogottUlti) \nadu 7 kiment:$(playerNames[g.adu7kiment]) adu 8 kiment:$(playerNames[g.adu8kiment])")
 end
 
 #The valid card to play in this trick (if there is already a card on the table)
@@ -487,8 +488,8 @@ function newState(g::GameState, card::Card)
     hand = remove(playerStates[currentPlayer].hand, card)
     playerStates[currentPlayer] = newHand(playerStates[currentPlayer], hand)
 
-    if card == Card(contract.suit, _7) adu7kiment = true end
-    if card == Card(contract.suit, _8) adu8kiment = true end
+    if card == Card(contract.suit, _7) adu7kiment = currentPlayer end
+    if card == Card(contract.suit, _8) adu8kiment = currentPlayer end
 
     if length(asztal) == 1 #uj szin
         currentSuit = SuitFace(card)[1]
@@ -521,12 +522,7 @@ function newState(g::GameState, card::Card)
                 if trump7 == largestCard(asztal, contract.suit)
                     lastTrick7 = whoseTrick
                 else
-                    #TODO: csendes ulti bukas
-                    # holaHetes = findfirst(asztal, trump7)
-                    # if holaHetes == 3 lastTrickFogottUlti = currentPlayer
-                    # elseif holaHetes == 1 lastTrickFogottUlti = nextPlayer(currentPlayer)
-                    # elseif holaHetes == 2 lastTrickFogottUlti = nextPlayer(nextPlayer(currentPlayer))
-                    # end
+                    lastTrickFogottUlti = adu7kiment #(csendes) ulti bukott
                 end
             end
         end
