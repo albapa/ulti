@@ -115,11 +115,77 @@ end
 #     return result
 # end
 
+#heuristics of ordering the right moves
+#TODO smallestCards
+function sortMoves(g::GameState, vm::CardSet32)
+    if length(vm) <= 1 return vm end
+    valid = vm
+        
+    result = Vector{Card}() #ordered
+
+    #sort suit by length
+    shorterThan(x,y) = length(valid * x)>length(valid * y)
+    suitsInvalid = filter(x->!isempty(valid * x), [t,z,m,p]) #TODO: randomize maybe later?
+    suitsInLengthOrder = sort(suitsInvalid, lt=shorterThan)
+
+    function largestCardsInsuitLengthOrder(result, valid, what=:largest)
+        for suit in suitsInLengthOrder
+            if isempty(valid * suit)
+                continue
+            end
+
+            if what == :largest
+                cards = largestCard(valid * suit, suit)
+                push!(result, cards)
+            elseif what == :smallest
+                cards = last(valid * suit) #TODO: properly for betli/duri
+                push!(result, cards)
+            else #:all
+                cards = valid * suit
+                append!(result, toArray(cards))
+            end
+            valid -= cards
+        end
+        #show(result); print(" | "); show(valid); println() #DEBUG
+        return (result, valid)
+    end
+
+    smallestCardsInsuitLengthOrder(result, valid) = largestCardsInsuitLengthOrder(result, valid, :smallest)
+
+    allCardsInsuitLengthOrder(result, valid) = largestCardsInsuitLengthOrder(result, valid, :all)
+
+    if g.contract.suit <= p #adu jatek
+        if isempty(g.asztal) #elso helyrol
+            #largest cards in suit length order
+            (result, valid) = largestCardsInsuitLengthOrder(result, valid)
+            #smallest cards in suit length order
+            (result, valid) = smallestCardsInsuitLengthOrder(result, valid)
+            #the rest in suit length order
+            (result, valid) = allCardsInsuitLengthOrder(result, valid)
+        else # masodik vagy harmadik helyrol - legkisebb dobas vagy felulutes
+            #smallest card in suit length order
+            (result, valid) = smallestCardsInsuitLengthOrder(result, valid)
+            #then largest card in suit length order
+            (result, valid) = largestCardsInsuitLengthOrder(result, valid)
+            #the rest in suit length order
+            (result, valid) = allCardsInsuitLengthOrder(result, valid)
+        end
+    else #TODO szintelen jatek, foleg betli
+
+    end
+
+    if !isempty(valid) push!(result, toArray(valid)) end
+
+    # show(result); print(" | "); show(valid); println() #DEBUG
+    assert(length(vm) == length(result)) #make sure we have all cards sorted
+    return result
+end
+
 #heuristics of picking the right moves
 function pickMoves(g::GameState, vm::CardSet32, depth::Int, α::Int, β::Int)
     vm = removeNeighbours(g, vm)
 
-    #TODO: sort by relevance
+    vm = sortMoves(g, vm)
     return vm
 end
 
@@ -130,6 +196,8 @@ end
 #tree for evaluation
 #TODO memoise: make sure states are identical if situation is identical - maybe define custom hash, use IntSets everywhere, and maybe-maybe (doublecheck) leave alpha and beta out of the memoise hash
 #BUG players are not in turn. Make sure max-min players are called right (if maximisingPlayer ...). Eventually there will be three types of players with different score goals (csendes ulti miatt)
+#TODO: memoize better?
+# @memoize Dict 
 function alfabeta(g::GameState, depth::Int, α::Int, β::Int)
     #DEBUG
     global abN += 1

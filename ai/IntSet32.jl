@@ -3,7 +3,7 @@
 import Base: AbstractSet, similar, copy, copy!, eltype, push!, pop!, delete!, shift!,
              empty!, isempty, union, union!, intersect, intersect!,
              setdiff, setdiff!, symdiff, symdiff!, in, start, next, done,
-             last, length, show, hash, issubset, ==, <=, <, unsafe_getindex,
+             last, length, show, hash, issubset, ==, <=, <, +, *, -, $, !, unsafe_getindex,
              unsafe_setindex!, findnextnot, first, getindex, rand
 if !isdefined(Base, :complement)
     export complement, complement!
@@ -37,9 +37,11 @@ eltype(cs1::CardSet32) = UInt32
 
 union(cs1::CardSet32, cs2::CardSet32) = CardSet32(cs1.cs | cs2.cs)
 union(cs1::CardSet32, css...) = union(cs1, union(css...))
++(cs1::CardSet32, cs2::CardSet32) = union(cs1, cs2)
 
 intersect(cs1::CardSet32, cs2::CardSet32) = CardSet32(cs1.cs & cs2.cs)
 intersect(cs1::CardSet32, css...) = intersect(cs1, intersect(css...))
+*(cs1::CardSet32, cs2::CardSet32) = intersect(cs1, cs2)
 
 in(cs1::CardSet32, cs2::CardSet32) = isequal(cs1.cs, cs1.cs & cs2.cs)
 
@@ -59,8 +61,14 @@ function toArray(cs1::CardSet32)
 end
 
 complement(cs1::CardSet32) = CardSet32(~cs1.cs)
+!(cs1::CardSet32) = complement(cs1)
+
 setdiff(cs1::CardSet32, cs2::CardSet32) = intersect(cs1, complement(cs2))
+-(cs1::CardSet32, cs2::CardSet32) = setdiff(cs1, cs2)
+
 symdiff(cs1::CardSet32, cs2::CardSet32) = CardSet32(cs1.cs $ cs2.cs) #xor / flip
+xor(cs1::CardSet32, cs2::CardSet32) = symdiff(cs1, cs2)
+
 
 #add card(s)
 function add(cs1::CardSet32, items::CardSet32)
@@ -116,3 +124,6 @@ function rand(rng::AbstractRNG, cs1::CardSet32)
     cs1[rand(rng, 1:length(cs1))]
     # rand(rng, toArray(cs1)) #TODO more efficiency: make set indexible by getindex
 end
+
+
+#TODO: + * - and $ for CardSet32

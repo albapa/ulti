@@ -154,9 +154,7 @@ end
 
 #returns the largest card in a set using the trump suit
 @memoize Dict function largestCard(cards::CardSet32, trump::Suit, suit::Suit=trump) #TODO add currentSuit handling
-    assert(length(cards) > 0)
-
-    if length(cards) == 1 return cards end
+    if length(cards) <= 1 return cards end
     card = first(cards)
     largerThanFirst = whichTrumps(cards, card, trump)
     if isempty(largerThanFirst) 
@@ -259,7 +257,7 @@ function copy(contract::Contract)
     Contract(contract.suit, contract.contracts, contract.totalvalue)
 end
 
-function isUlti(contract::Contract)
+@memoize function isUlti(contract::Contract)
     for ce in contract.contracts
         if ce.bem == ulti
             return true
@@ -268,7 +266,7 @@ function isUlti(contract::Contract)
     return false
 end
 
-function isRepulo(contract::Contract)
+@memoize function isRepulo(contract::Contract)
     for ce in contract.contracts
         if ce.bem == repulo
             return true
@@ -277,7 +275,7 @@ function isRepulo(contract::Contract)
     return false
 end
 
-isUltiRepulo(contract::Contract) = isUlti(contract) && isRepulo(contract)
+@memoize isUltiRepulo(contract::Contract) = isUlti(contract) && isRepulo(contract)
 
 contractValues = Dict{Tuple{Suit,AlapBemondas,Modosito}, Int}()
 #TODO mit lehet elolrol hatulrol es ramondva bemondani

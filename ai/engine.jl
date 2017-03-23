@@ -211,6 +211,15 @@ function ps(g::GameState, player::Player)
     return g.playerStates[player]
 end
 
+#match cards to a pattern
+#Example: "pAKxx zT7x mKF tx" , full deck
+#Eliminate by rows (every spot must have one card)
+#and columns (one card can only be maximum at one place at the end)
+#if no obvious step, match a card randomly
+function matchCards(cardSlots::Vector{CardSet}, cards::CardSet)
+    #build 2D binary (logical) matrix
+end
+
 #Evaluate the score based on the game state
 #if the game is over, it returns the final score
 #otherwise the sum of contracts that have been decided
