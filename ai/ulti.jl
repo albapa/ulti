@@ -14,24 +14,24 @@ g = GameState(
     PlayerState(
       Player(1),
       CardSet([pA,pT,pK,pU,p7, mK,mU,m8, tT, z9]), #felvevo lapja
-      CardSet(), 0,0, #nincs meg utese, 20 vagy 40
+      CardSet(), UInt8(0),UInt8(0), #nincs meg utese, 20 vagy 40
     ),
     PlayerState(
       Player(2),
       CardSet([pF,p9,p8, mA,mF,m7, zK, zF, z7, tF]), #2. jatekos lapja
-      CardSet(), 0,0, #nincs meg utese, 20 vagy 40
+      CardSet(), UInt8(0),UInt8(0), #nincs meg utese, 20 vagy 40
     ),
     PlayerState(
       Player(3),
       CardSet([mT,m9, zA,zT,zU,z8, tA,tK,t8,t7 ]), #3. jatekos lapja
-      CardSet(), 0,0, #nincs meg utese, 20 vagy 40
+      CardSet(), UInt8(0),UInt8(0), #nincs meg utese, 20 vagy 40
     )
   ),
   p1 #current player
 )
 
 # g=newState(g, rand(rng, validMoves(g)))
-# alfabeta(g, -1, -typemin(Int), typemax(Int))
+# alfabeta(g, -1, typemin(Int), typemax(Int))
 # alfabeta(g, -1, -g.contract.totalvalue, g.contract.totalvalue)
 
 ##############

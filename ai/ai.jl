@@ -138,7 +138,8 @@ function sortMoves(g::GameState, vm::CardSet32)
                 cards = largestCard(valid * suit, suit)
                 push!(result, cards)
             elseif what == :smallest
-                cards = last(valid * suit) #TODO: properly for betli/duri
+                # cards = last(valid * suit) #TODO: properly for betli/duri
+                cards = smallestCard(valid * suit, suit)
                 push!(result, cards)
             else #:all
                 cards = valid * suit
@@ -197,8 +198,7 @@ end
 #TODO memoise: make sure states are identical if situation is identical - maybe define custom hash, use IntSets everywhere, and maybe-maybe (doublecheck) leave alpha and beta out of the memoise hash
 #BUG players are not in turn. Make sure max-min players are called right (if maximisingPlayer ...). Eventually there will be three types of players with different score goals (csendes ulti miatt)
 #TODO: memoize better?
-# @memoize Dict 
-function alfabeta(g::GameState, depth::Int, α::Int, β::Int)
+@memoize Dict function alfabeta(g::GameState, depth::Int, α::Int, β::Int)
     #DEBUG
     global abN += 1
     # global gLast = g

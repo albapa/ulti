@@ -2,6 +2,7 @@ include("basics.jl")
 # include("IntSet32.jl")
 import DataStructures
 import Base: copy, union, in, intersect
+import Combinatorics: Combinations
 # import Base: complement
 
 ##############
@@ -53,14 +54,14 @@ end
 aduk(cs::CardSet, adu::Suit) = intersect(cs, adu)
 
 #Players
-typealias Player Int
-    p1=1 
-    p2=2 
-    p3=3 
-    p4=4 
-    p5=5 
-    p6=6 
-    pX=7
+typealias Player UInt8
+    p1=UInt8(1) 
+    p2=UInt8(2) 
+    p3=UInt8(3) 
+    p4=UInt8(4) 
+    p5=UInt8(5) 
+    p6=UInt8(6) 
+    pX=UInt8(7)
 const playerNames = Dict([
     (p1, "Alfa "),
     (p2, "Béla "),
@@ -82,8 +83,8 @@ immutable PlayerState
     player::Player
     hand::CardSet
     discard::CardSet
-    negyven::Int #0 vagy 1
-    husz::Int #0-3
+    negyven::UInt8 #0 vagy 1
+    husz::UInt8 #0-3
 end
 
 function newHand(ps::PlayerState, hand::CardSet)
@@ -94,7 +95,7 @@ function newDiscard(ps::PlayerState, discard::CardSet)
     PlayerState(ps.player, ps.hand, discard, ps.negyven, ps.husz)
 end
 
-function newNegyvenHusz(ps::PlayerState, negyven::Int, husz::Int)
+function newNegyvenHusz(ps::PlayerState, negyven::UInt8, husz::UInt8)
     PlayerState(ps.player, ps.hand, ps.discard, negyven, husz)
 end
 
@@ -121,13 +122,13 @@ immutable GameState
     adu7kiment::Player
     adu8kiment::Player
     lastTrickFogottUlti::Player #elbukta a (csendes) ultit
-    tricks::Int             #number of tricks
-    felvevoTricks::Int      #number of tricks
-    ellenvonalTricks::Int   #number of tricks
-    felvevoTizesek::Int     #tizesek + aszok + utolso utes
-    ellenvonalTizesek::Int  #tizesek + aszok + utolso utes
-    felvevoOsszes::Int      #tizesek + aszok + utolso utes + 20 + 40
-    ellenvonalOsszes::Int   #tizesek + aszok + utolso utes + 20 + 40
+    tricks::UInt8             #number of tricks
+    felvevoTricks::UInt8      #number of tricks
+    ellenvonalTricks::UInt8   #number of tricks
+    felvevoTizesek::UInt8     #tizesek + aszok + utolso utes
+    ellenvonalTizesek::UInt8  #tizesek + aszok + utolso utes
+    felvevoOsszes::UInt8      #tizesek + aszok + utolso utes + 20 + 40
+    ellenvonalOsszes::UInt8   #tizesek + aszok + utolso utes + 20 + 40
 
     #default constructor
     function GameState(contract::Contract, pakli::CardSet, asztal::CardSet,
@@ -135,8 +136,8 @@ immutable GameState
         currentPlayer::Player=p1, currentSuit::Suit=nosuit, whoseTrick::Player=pX, 
         lastTrick::Player = pX , lastTrick7::Player = pX,
         butLastTrick8::Player = pX , adu7kiment::Player=pX, adu8kiment::Player=pX,
-        lastTrickFogottUlti::Player=pX, tricks::Int = 0, felvevoTricks = 0, ellenvonalTricks = 0,
-        felvevoTizesek::Int=0, ellenvonalTizesek::Int=0, felvevoOsszes::Int=0, ellenvonalOsszes::Int=0)
+        lastTrickFogottUlti::Player=pX, tricks::UInt8 = 0x0, felvevoTricks = 0x0, ellenvonalTricks = 0x0,
+        felvevoTizesek::UInt8=0x0, ellenvonalTizesek::UInt8=0x0, felvevoOsszes::UInt8=0x0, ellenvonalOsszes::UInt8=0x0)
 
       new(contract, pakli, asztal, talon, playerStates, currentPlayer, currentSuit, whoseTrick, lastTrick, lastTrick7, butLastTrick8, adu7kiment, adu8kiment, lastTrickFogottUlti, tricks, felvevoTricks, ellenvonalTricks, felvevoTizesek, ellenvonalTizesek, felvevoOsszes, ellenvonalOsszes)
     end
@@ -192,6 +193,12 @@ end
 #Contract and cards are separated by ';'
 function parseCards(s::String)
     ###doing prefix parsing
+
+    #Ideas: suit then cards x, a(du)bcd, [80%]bFK [20%E] eros(AT), xN10 (fill until 10 cards)
+    #first match abcd then single cards then probabilities greedily. 
+    #Q: try again if fails? how many times? maybe give warning? Try ALL?
+    #bemondas: regexp for p[EHR].x[Ult|Rep|40|4A...]K*  (vagy RK, SK MK) 
+
     collections = split(s, ['|', '/'])
     for collection in collections
         for c in collection
@@ -216,8 +223,128 @@ end
 #Eliminate by rows (every spot must have one card)
 #and columns (one card can only be maximum at one place at the end)
 #if no obvious step, match a card randomly
+#TODO test
 function matchCards(cardSlots::Vector{CardSet}, cards::CardSet)
     #build 2D binary (logical) matrix
+    #see Sodoku solver at: http://www.math.cornell.edu/~mec/Summer2009/meerkamp/Site/Solving_any_Sudoku_II.html
+
+    isDone = [false for cs in cardSlots] #mark elements committed
+
+    (slotsByWeight, cards) = commitAllUnique(cardSlots, isDone, cards) #do twice at the beginning to make sure all simple ones are resolved before the complicated searches start
+    
+    while !all(isDone)
+        
+        #for (cs, dn) in zip(cardSlots, isDone); (print(dn), show(cs), println()) end; (show(cards), println()); for (k,v) in slotsByWeight print(" $(k) $(v)") end #DEBUG
+        
+        (slotsByWeight, cards) = commitAllUnique(cardSlots, isDone, cards)
+
+        if all(isDone) break end
+
+        #if all remaining slots are the same, distribute -> done
+        if length(slotsByWeight) == 1
+            for (n, indices) in slotsByWeight
+                assert(length(indices) > 0)
+                firstElem = cardSlots[first(indices)]
+                if all(x -> cardSlots[x] == firstElem, indices) #all equal
+                    if(length(firstElem * cards) < length(indices))
+                        throw("not enough cards to distribute indices: $(indices) cards: $(cards)")
+                    end
+
+                    #distribute randomly
+                    cardsToCommit = shuffle(rng, toArray(firstElem * cards))
+                    cards = commitMany!(cardSlots, isDone, indices, cardsToCommit, cards)
+                end
+            end
+            assert(all(isDone))
+        end
+        #for (cs, dn) in zip(cardSlots, isDone); (print(dn), show(cs), println()) end; (show(cards), println()); for (k,v) in slotsByWeight print(" $(k) $(v)") end #DEBUG
+
+        if all(isDone) break end
+
+        #look for preemptive sets (for example 3 slots with pATK, pATK, pATK that we can commit)
+        foundPreemptiveSet = false
+        for (n, indices) in slotsByWeight 
+            if length(indices) < n 
+                continue 
+            end #for length x we need at least x in the set
+
+            (firstPreemptiveSet, cardsInSet) = findPreemptiveSet(n, indices, cardSlots) #if we find one we commit immediately
+
+            if !isempty(firstPreemptiveSet)
+                assert(length(firstPreemptiveSet) == n && length(cardsInSet) == n) #exactly n cards needed
+                foundPreemptiveSet = true
+                # 
+                #TODO: we just randomly do that 
+                #we could generate all permutations if needed using Combinatorics.Permutations(toArray(cards), n)
+                cardsToCommit = shuffle(rng, toArray(cards))
+                cards = commitMany!(cardSlots, isDone, firstPreemptiveSet, cardsToCommit, cards)
+                break
+            end
+        end
+        
+        #for (cs, dn) in zip(cardSlots, isDone); (print(dn), show(cs), println()) end; (show(cards), println()); for (k,v) in slotsByWeight print(" $(k) $(v)") end #DEBUG
+
+        #all hard criteria fullfilled - randomly fill the rest
+        if !foundPreemptiveSet
+            #TODO
+        end
+    end
+
+    return (cardSlots, cards)
+end
+
+#find single cards and commit them
+@inline function commitAllUnique(cardSlots, isDone, cards)
+    slotsByWeight = Dict{Int, Vector{Int}}()
+    for i in 1:length(cardSlots)
+        if isDone[i] #already done
+            continue
+        end
+
+        cardSlots[i] *= cards #we cannot wish for cards not in the deck anymore
+        cs = cardSlots[i]
+        len = length(cs)
+        if 0 == len #commit
+            throw("no (matching) card - cannot fulfill criteria. index: $(i), card: $(cs), deck: $(cards)")
+        elseif 1 == len #commit
+            cards = commit!(isDone, i, cs, cards)
+        else
+             slotsByWeight[len] = push!(get(slotsByWeight, len, Vector{Int}()), i)
+        end
+    end
+
+    return (slotsByWeight, cards)
+end
+
+#find the first preemptive set
+function findPreemptiveSet(n, indices, cardSlots)
+    for comb in combinations(indices, n) #try all combinations
+        allCardsInComb = CardSet(cardSlots[comb]) #array constructor -> union
+        if length(allCardsInComb) == n #n cards in n slots
+            return (comb, allCardsInComb)
+        end
+    end
+    
+    return ([], CardSet()) # no preemptive set
+end
+
+function commit!(isDone, i, card, cards)
+    if !(card in cards) throw("card not in cards - cannot fulfill criteria") end
+    cards = cards - card
+    isDone[i] = true
+
+    return cards
+end
+
+function commitMany!(cardSlots, isDone, indices, cardsToCommit, cards)
+    for (i, card) in zip(indices, cardsToCommit)
+        assert(card in cardSlots[i])
+        cardSlots[i] *= card
+
+        cards = commit!(isDone, i, card, cards)
+    end
+
+    return cards
 end
 
 #Evaluate the score based on the game state
@@ -439,9 +566,10 @@ function validMoves(g)
     end
     if length(valid) > 1 && isRepulo(g.contract)
         adu8 = Card(g.contract.suit, _8)
-        if g.tricks < 9 setdiff!(valid, Int(adu8)) #nem szabad kijatszani
+        if g.tricks < 9 
+            valid -= adu8 #nem szabad kijatszani
         elseif g.tricks == 9 && adu8 in valid
-            valid = CardSet(Int(adu8)) #kotelezo kijatszani
+            valid = adu8 #kotelezo kijatszani
         end
     end
 
@@ -464,7 +592,7 @@ function newState(gOld::GameState, contract::Contract)
     throw("implement me!")
 end
 
-function newState(gOld::GameState, negyven::Int, husz::Int)
+function newState(gOld::GameState, negyven::UInt8, husz::UInt8)
     if g.tricks > 1 throw(ArgumentError("negyven, husz csak a jatek elejen")) end
     if g.contract.suit > p throw(ArgumentError("szines jatek kell")) end
     if negyven > 1 || husz > 3 || husz < 0 || negyven < 0 throw(ArgumentError()) end
@@ -516,16 +644,16 @@ function newState(g::GameState, card::Card)
         tizasz = hanyAT(asztal)
 
         #update variables
-        tricks += 1
-        if tricks == 10
+        tricks += UInt8(1)
+        if tricks == UInt8(10)
             lastTrick = whoseTrick
 
             if lastTrick == p1 #utolso utes = 10
-                felvevoTizesek += 10
-                felvevoOsszes += 10
+                felvevoTizesek += UInt8(10)
+                felvevoOsszes += UInt8(10)
             else
-                ellenvonalTizesek += 10
-                ellenvonalOsszes+= 10
+                ellenvonalTizesek += UInt8(10)
+                ellenvonalOsszes+= UInt8(10)
             end
 
 
@@ -548,13 +676,13 @@ function newState(g::GameState, card::Card)
         end
 
         if whoseTrick == p1
-            felvevoTricks += 1
-            felvevoTizesek += tizasz * 10
-            felvevoOsszes+= tizasz * 10
+            felvevoTricks += UInt8(1)
+            felvevoTizesek += UInt8(tizasz * 10)
+            felvevoOsszes+= UInt8(tizasz * 10)
         else
-            ellenvonalTricks += 1
-            ellenvonalTizesek += tizasz * 10
-            ellenvonalOsszes+= tizasz * 10
+            ellenvonalTricks += UInt8(1)
+            ellenvonalTizesek += UInt8(tizasz * 10)
+            ellenvonalOsszes+= UInt8(tizasz * 10)
         end
 
         discard = add(playerStates[whoseTrick].discard, asztal)
@@ -576,3 +704,31 @@ end
 ##############
 #Tests
 ##############
+
+function engineTest()
+    matchCards([tA, tK, tF+tA+tU+t8, tU, tF+tA+tU+t8, tF+tA+tU+t8+t7], t)
+end
+
+function parseTest()
+    parseCards("pATKU7 mKU8 z9 tT | pF98 mAF7 zKF7 tF | mT9 zATU8 tAK87")
+    parseCards("❤️️ ️️A ❤️️ ️️T ❤️️ ️️K ❤️️ ️️U ❤️️ ️️7 🌰 K 🌰 U 🌰 8 🍃 9 🎃 T | ❤️️️️ ️️F ❤️️ ️️9 ❤️️ ️️8 🌰 A 🌰 F 🌰 7 🍃 K 🍃 F 🍃 7 🎃 F |  T 🌰 9 🍃 A 🍃 T 🍃 U 🍃 8 🎃 A 🎃 K 🎃 8 🎃 7", )
+    parseCards("pAKxx mTxx tX zA7k")
+    parseCards("xXXXXXXXXXX")
+    parseCards("xXXXXXXXXXXXX|xXXXXXXXXXX|xXXXXXXXXXX")
+    parseCards("aAxx7 bATxx cXX")
+    parseCards("aAxx7 bATxx cXX dXX")
+    parseCards("[80%]aXXXX [10%]aXXXXX [5%]aXXX [5%]aXXXXXX xN10")
+    #hibas
+
+    parseContract("EpUltK")
+    parseContract("pRep")
+    parseContract("Ep") #parti
+    parseContract("EpEK") #elolrol kontra parti
+    parseContract("EpHK") #elolrol kontra parti
+    parseContract("EpEKHRK") #elolrol kontra hatulrol rekontra
+    parseContract("pUltRep4A") #parti
+    parseContract("p EP RRep RCsu") #parti
+    parseContract("4T") #szintelen 4T
+    parseContract("H Bet") #szintelen betli
+    parseContract("H pTerbet")
+end

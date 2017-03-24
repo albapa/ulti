@@ -68,6 +68,7 @@ function show(cs::CardSet32, io::IO=STDOUT, shortForm=false)
     end
 end
 
+display(cs::CardSet32) = show(cs)
 
 typealias Suit CardSet32
     const t = union(t7,t8,t9,tU,tF,tK,tT,tA) #Tök
@@ -134,6 +135,7 @@ Card(suit::Suit, face::Face) = intersect(suit, face)
     end
 end
 
+#TODO: trumping is a mess - rewrite
 #support structure for trumping
 largerThan = Dict{Tuple{Card, Suit}, CardSet32}()
 for (card1, x) in deck
@@ -169,6 +171,16 @@ end
     end
 end
 
+@memoize Dict function smallestCard(cards::CardSet32, trump::Suit, suit::Suit=trump) #TODO add currentSuit handling
+    if length(cards) <= 1 return cards end
+    card = last(cards)
+    if length(whichTrumps(cards, card, trump)) == length(cards) - 1 #trumped by all
+        return card
+    else
+        return smallestCard(cards - card, trump) #TODO only works for sameSuit and trump
+    end
+end
+
 #compare one card to a set using the trump suit
 @memoize Dict function trumpsAll(card1::Card, cards::CardSet32, trump::Suit) 
     for card in cards
@@ -178,23 +190,31 @@ end
     # isempty(intersect(cards, largerThan[(card1, trump)])) #problem: suit (mA does not trump zT if trump is p)
 end
 
+@memoize Dict function trumpsNone(card1::Card, cards::CardSet32, trump::Suit) 
+    for card in cards
+        if trumps(card1, card, trump) return false end
+    end
+    return true #I trumped no card
+    # isempty(intersect(cards, largerThan[(card1, trump)])) #problem: suit (mA does not trump zT if trump is p)
+end
+
 #Bemondasok
 # abban a sorrendben, ahogy egymashoz fuzik oket (ulti-repulo-40_100-negyAsz-durchmars)
-typealias AlapBemondas Int
-    semmi = 0 #amig nincs semmi
-    ulti = 1
-    repulo = 2
-    negyvenSzaz = 3
-    huszSzaz = 4
-    negyAsz = 5
-    durchmars = 6
-    redurchmars = 7
-    parti = passz = 8
-    betli = 9
-    rebetli = 10
-    negyTizes = 11
-    csendesUlti = 12
-    csendesDuri = 13
+typealias AlapBemondas UInt8
+    semmi = UInt8(0) #amig nincs semmi
+    ulti = UInt8(1)
+    repulo = UInt8(2)
+    negyvenSzaz = UInt8(3)
+    huszSzaz = UInt8(4)
+    negyAsz = UInt8(5)
+    durchmars = UInt8(6)
+    redurchmars = UInt8(7)
+    parti = passz = UInt8(8)
+    betli = UInt8(9)
+    rebetli = UInt8(10)
+    negyTizes = UInt8(11)
+    csendesUlti = UInt8(12)
+    csendesDuri = UInt8(13)
     
 #Bemondasok erteke es nevei (elso nev lesz kiirva)
 const alapBemondasProperties = Dict([
@@ -213,10 +233,10 @@ const alapBemondasProperties = Dict([
 ])
 
 #Modosito szorzok elolrol bemondott vagy ramondott bemondasokra
-typealias Modosito Int
-    elolrol =  4
-    ramondva = 2
-    hatulrol = 1
+typealias Modosito UInt8
+    elolrol =  UInt8(4)
+    ramondva = UInt8(2)
+    hatulrol = UInt8(1)
 
 const modositoProperties = Dict([
   (elolrol,  ["Elölről",  "Elolrol",  "E"]),
@@ -225,9 +245,9 @@ const modositoProperties = Dict([
 ])
 
 
-typealias Kontra Int
-    EK = 4
-    HK = 2
+typealias Kontra UInt8
+    EK = UInt8(4)
+    HK = UInt8(2)
 
 const kontraProperties = Dict([
   (EK, ["Elölről kontra",  "EK"]),
@@ -283,7 +303,7 @@ contractValues = Dict{Tuple{Suit,AlapBemondas,Modosito}, Int}()
 for suit in [t, z, m, p]
     for bem in [parti, negyvenSzaz, ulti, repulo, negyAsz, durchmars, huszSzaz, rebetli, redurchmars]
         for honnan in [elolrol, ramondva, hatulrol]
-            contractValues[(suit, bem, honnan)] = Int(honnan) * suitProperties[suit][2] * alapBemondasProperties[bem][1]
+            contractValues[(suit, bem, honnan)] = UInt8(honnan) * suitProperties[suit][2] * alapBemondasProperties[bem][1]
         end
     end
 end
@@ -312,7 +332,7 @@ function show(io::IO, contract::Contract, shortFormat=false)
 end
 
 function parseContract(contract::String)
-
+    regexp = r"(t|z|m|p|a|b|c|d|s|nt|sz)? ( ([Ee]|[Rr]|[Hh]|Elolrol|Ramondva|Hatulrol)? (Passz|Parti|semmi|P|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd)? (EK*HK*|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord)? )*"
 end
 
 ##############

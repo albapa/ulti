@@ -3,7 +3,7 @@
 import Base: AbstractSet, similar, copy, copy!, eltype, push!, pop!, delete!, shift!,
              empty!, isempty, union, union!, intersect, intersect!,
              setdiff, setdiff!, symdiff, symdiff!, in, start, next, done,
-             last, length, show, hash, issubset, ==, <=, <, +, *, -, $, !, unsafe_getindex,
+             last, length, show, display, hash, issubset, ==, <=, <, +, *, -, $, !, unsafe_getindex,
              unsafe_setindex!, findnextnot, first, getindex, rand
 if !isdefined(Base, :complement)
     export complement, complement!
