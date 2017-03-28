@@ -3,7 +3,7 @@
 ##############
 include("IntSet32.jl")
 using Memoize
-import Base: show, <, copy
+import Base: show, <, copy, print
 DEBUG = true
 UNSAFE = false #assert, type safety, etc. off
 
@@ -54,21 +54,17 @@ const deck = Dict([
     p7 => ("p7", "❤️️ ️️7"), p8 => ("p8", "❤️️ ️️8"), p9 => ("p9", "❤️️ ️️9"), pU => ("pU", "❤️️ ️️U"), pF => ("pF", "❤️️️️ ️️F"), pK => ("pK", "❤️️ ️️K"), pT => ("pT", "❤️️ ️️T"), pA => ("pA", "❤️️ ️️A")])
 
 
-function show(ca::Vector{CardSet32}, io::IO=STDOUT, shortForm=false)
-    if isempty(ca) return end
-    for card in ca
-      shortForm ? print(io, deck[card][1]): print(io, deck[card][2], " ")
-    end
-end
-
-function show(cs::CardSet32, io::IO=STDOUT, shortForm=false)
+function print(io::IO, cs::CardSet32, shortForm=true)
     if isempty(cs) return end
     for card in cs
       shortForm ? print(io, deck[card][1]): print(io, deck[card][2], " ")
     end
 end
 
-display(cs::CardSet32) = show(cs)
+display(cs::CardSet32) = print(STDOUT, cs, false)
+
+print(io::IO, cs::Vector{CardSet32}, shortForm=true) = print(io, CardSet32(cs), shortForm)
+display(cs::Vector{CardSet32}) = print(STDOUT, cs, false)
 
 typealias Suit CardSet32
     const t = union(t7,t8,t9,tU,tF,tK,tT,tA) #Tök
@@ -217,19 +213,20 @@ typealias AlapBemondas UInt8
     csendesDuri = UInt8(13)
     
 #Bemondasok erteke es nevei (elso nev lesz kiirva)
+#TODO: value -> (licit, max, min)
 const alapBemondasProperties = Dict([
-  (semmi,       (0, ["", "semmi"])),
-  (ulti,        (4, ["Ulti", "ultimo"])),
-  (repulo,      (4, ["Repülő", "repulo"], )),
-  (negyvenSzaz, (4, ["40-100", "40 100", "40_100", "negyvenSzaz", "negyvenSzáz", "Negyven Szaz", "Negyven Száz"])),
-  (huszSzaz,    (8, ["20-100", "20 100", "20_100", "huszSzaz", "húszSzáz", "Husz Szaz", "Húsz Száz"])),
-  (negyAsz,     (4, ["4 Ász", "4 Asz", "negyAsz", "NégyÁsz", "Negy Asz", "Négy Ász"])),
-  (durchmars,   (6, ["Durchmars"])),
-  (redurchmars, (12, ["Terített Durchmars", "redurchmars"])),
-  (parti,       (1, ["Passz", "Parti"])),
-  (betli,       (30, ["Betli"])), #mert szintelen, nincs szorzo
-  (rebetli,     (20, ["Terített Betli", "rebetli"])),
-  (negyTizes,   (55, ["4 Tízes", "4 Tizes", "negyTizes", "NégyTízes", "Negy Tizes", "Négy Tízes"])),
+  (semmi,       (0, ["", "semmi", ""])),
+  (ulti,        (4, ["Ulti", "ultimo", "Ult"])),
+  (repulo,      (4, ["Repülő", "repulo", "Rep"], )),
+  (negyvenSzaz, (4, ["40-100", "40 100", "40_100", "negyvenSzaz", "negyvenSzáz", "Negyven Szaz", "Negyven Száz", "40s"])),
+  (huszSzaz,    (8, ["20-100", "20 100", "20_100", "huszSzaz", "húszSzáz", "Husz Szaz", "Húsz Száz", "20s"])),
+  (negyAsz,     (4, ["4 Ász", "4 Asz", "negyAsz", "NégyÁsz", "Negy Asz", "Négy Ász", "4A"])),
+  (durchmars,   (6, ["Durchmars", "Dur"])),
+  (redurchmars, (12, ["Terített Durchmars", "redurchmars", "TDur"])),
+  (parti,       (1, ["Parti", "Passz", "Par"])),
+  (betli,       (30, ["Betli", "Bet"])), #mert szintelen, nincs szorzo
+  (rebetli,     (20, ["Terített Betli", "rebetli", "TBet"])),
+  (negyTizes,   (55, ["4 Tízes", "4 Tizes", "negyTizes", "NégyTízes", "Negy Tizes", "Négy Tízes", "4T"])),
 ])
 
 #Modosito szorzok elolrol bemondott vagy ramondott bemondasokra
@@ -264,6 +261,18 @@ immutable ContractElement
     kon::Kontrak
     val::Number
  end
+
+function print(io::IO, ce::ContractElement, shortFormat::Bool=true)
+    print(io, 
+        shortFormat ? modositoProperties[ce.modosito][end] : modositoProperties[ce.modosito][1] * " ",
+        shortFormat ? alapBemondasProperties[ce.bem][2][end] : alapBemondasProperties[ce.bem][2][1] * " ")
+        
+    for k in ce.kon
+        print(io, kontraProperties[k][2])
+    end
+end
+
+display(ce::ContractElement) = print(STDOUT, ce, false)
 
 #A bemondas
 immutable Contract
@@ -326,10 +335,19 @@ contractValues[(nosuit, redurchmars, hatulrol)] = 144
 #     end
 # end
 #
-function show(io::IO, contract::Contract, shortFormat=false)
-    print(io, "Bemondás: ")
+function print(io::IO, contract::Contract, shortFormat::Bool=true)
+    if !shortFormat
+        print(io, "Bemondás: ", suitProperties[contract.suit][1][1], " ")
+    else
+        print(io, suitProperties[contract.suit][1][end])
+    end
 
+    for ce in contract.contracts
+        print(io, ce, shortFormat)
+    end
 end
+
+display(contract::Contract) = print(STDOUT, contract, false)
 
 function parseContract(contract::String)
     regexp = r"(t|z|m|p|a|b|c|d|s|nt|sz)? ( ([Ee]|[Rr]|[Hh]|Elolrol|Ramondva|Hatulrol)? (Passz|Parti|semmi|P|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd)? (EK*HK*|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord)? )*"

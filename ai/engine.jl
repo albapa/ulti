@@ -234,7 +234,7 @@ function matchCards(cardSlots::Vector{CardSet}, cards::CardSet)
     
     while !all(isDone)
         
-        #for (cs, dn) in zip(cardSlots, isDone); (print(dn), show(cs), println()) end; (show(cards), println()); for (k,v) in slotsByWeight print(" $(k) $(v)") end #DEBUG
+        #for (cs, dn) in zip(cardSlots, isDone); (print(dn), print(cs), println()) end; (print(cards), println()); for (k,v) in slotsByWeight print(" $(k) $(v)") end #DEBUG
         
         (slotsByWeight, cards) = commitAllUnique(cardSlots, isDone, cards)
 
@@ -257,7 +257,7 @@ function matchCards(cardSlots::Vector{CardSet}, cards::CardSet)
             end
             assert(all(isDone))
         end
-        #for (cs, dn) in zip(cardSlots, isDone); (print(dn), show(cs), println()) end; (show(cards), println()); for (k,v) in slotsByWeight print(" $(k) $(v)") end #DEBUG
+        #for (cs, dn) in zip(cardSlots, isDone); (print(dn), print(cs), println()) end; (print(cards), println()); for (k,v) in slotsByWeight print(" $(k) $(v)") end #DEBUG
 
         if all(isDone) break end
 
@@ -282,7 +282,7 @@ function matchCards(cardSlots::Vector{CardSet}, cards::CardSet)
             end
         end
         
-        #for (cs, dn) in zip(cardSlots, isDone); (print(dn), show(cs), println()) end; (show(cards), println()); for (k,v) in slotsByWeight print(" $(k) $(v)") end #DEBUG
+        #for (cs, dn) in zip(cardSlots, isDone); (print(dn), print(cs), println()) end; (print(cards), println()); for (k,v) in slotsByWeight print(" $(k) $(v)") end #DEBUG
 
         #all hard criteria fullfilled - randomly fill the rest
         if !foundPreemptiveSet
@@ -370,10 +370,10 @@ function score(g::GameState, ce::ContractElement)
             end
         end
         kiadoUtesek = 90 - (g.felvevoTizesek + g.ellenvonalTizesek)
-        if g.felvevoOsszes - g.ellenvonalOsszes > kiadoUtesek
+        if g.felvevoOsszes > kiadoUtesek + g.ellenvonalOsszes #Uint(0) - Uint(20) = 236!
             return ce.val #mar barhogyan megnyertuk, akkor is ha a kiado utesek az ellenhez kerulnek
         end
-        if g.ellenvonalOsszes - g.felvevoOsszes > kiadoUtesek
+        if g.ellenvonalOsszes > kiadoUtesek + g.felvevoOsszes
             return -ce.val #mar barhogyan megnyertek, akkor is ha a kiado utesek hozzam kerulnek
         end
         return 0
@@ -493,34 +493,56 @@ function flushScreen()
     println("\n"^100)
 end
 
-function show(io::IO, pstate::Tuple{PlayerState, PlayerState, PlayerState})
-    for pl in pstate
-        print(io, playerNames[pl.player]); print(io, ": ")
-        show(pl.hand, io)
+function print(io::IO, pstate::Tuple{PlayerState, PlayerState, PlayerState}, shortFormat::Bool=true)
+    if shortFormat
+        for pl in pstate
+            print(io, pl.hand, true); print(io, "|")
+            print(io, pl.discard, true); print(io, "|")
+            print(io, pl.negyven); print(io, "|")
+            print(io, pl.husz); print(io, "|")
+        end
+    else
+        for pl in pstate
+            print(io, playerNames[pl.player]); print(io, ": ")
+            print(io, pl.hand, false)
+            println(io); println(io)
+        end
         println(io); println(io)
-    end
-    println(io); println(io)
-    for pl in pstate
-        print(io, playerNames[pl.player]); print(io, " ütései: ")
-        show(pl.discard, io)
-        println(io)
+        for pl in pstate
+            print(io, playerNames[pl.player]); print(io, " ütései: ")
+            print(io, pl.discard, false)
+            println(io)
+        end
     end
 end
 
-function show(io::IO, g::GameState)
-    println(io, g.contract); println(io)
-    print(io, "Asztal: "); show(g.asztal, io); println(io); println(io); println(io)
-    show(io, g.playerStates)
-    print(io, "Talon: " ); show(g.talon, io); println(io)
+display(pstate::Tuple{PlayerState, PlayerState, PlayerState}) = print(STDOUT, pstate, false)
 
-    print(io, "\n$(playerNames[g.currentPlayer]) jön. Lehetséges hívasok: "); show(validMoves(g))
-    print(io, "\n\nÜtések száma: $(g.tricks)")
-    print(io, "\nNyeremény: $(score(g))")
-    # print(io, "\nadu: $(g.contract.suit)")
-    print(io, "\nFelvevő    Tízesek:$(g.felvevoTizesek)    Összes:$(g.felvevoOsszes)    Ütések:$(g.felvevoTricks)")
-    print(io, "\nEllenvonal Tízesek:$(g.ellenvonalTizesek)    Összes:$(g.ellenvonalOsszes)    Ütések:$(g.ellenvonalTricks)")
-    print(io, "\nUtolsó ütés:$(playerNames[g.lastTrick])    adu 7 utolsó:$(playerNames[g.lastTrick7])    adu 8 utolsó előtti:$(playerNames[g.butLastTrick8])    csendes ulti bukott:$(playerNames[g.lastTrickFogottUlti]) \nadu 7 kiment:$(playerNames[g.adu7kiment]) adu 8 kiment:$(playerNames[g.adu8kiment])")
+function print(io::IO, g::GameState, shortFormat::Bool=true)
+    if shortFormat
+        print(io, g.contract, true); print(io, "|")
+        print(io, g.asztal, true); print(io, "|")
+        print(io, g.playerStates, true); print(io, "|")
+        print(io, g.talon, true); print(io, "|")
+    else
+        println();print(io, g.contract, false); println(io)
+        print(io, "\nAsztal: "); print(io, g.asztal, false); println(io); println(io); println(io)
+        print(io, g.playerStates, false)
+        print("Talon: "); print(io, g.talon, false); println(io)
+
+        print(io, "\n$(playerNames[g.currentPlayer]) jön. Lehetséges hívasok: "); print(io, validMoves(g), false)
+        print(io, "\n\nÜtések száma: $(g.tricks)")
+        print(io, "\nNyeremény: $(score(g))")
+        # print(io, "\nadu: $(g.contract.suit)")
+        print(io, "\nFelvevő    Tízesek:$(g.felvevoTizesek)    Összes:$(g.felvevoOsszes)    Ütések:$(g.felvevoTricks)")
+        print(io, "\nEllenvonal Tízesek:$(g.ellenvonalTizesek)    Összes:$(g.ellenvonalOsszes)    Ütések:$(g.ellenvonalTricks)")
+        print(io, "\nUtolsó ütés:$(playerNames[g.lastTrick])    adu 7 utolsó:$(playerNames[g.lastTrick7])    adu 8 utolsó előtti:$(playerNames[g.butLastTrick8])    csendes ulti bukott:$(playerNames[g.lastTrickFogottUlti]) \nadu 7 kiment:$(playerNames[g.adu7kiment]) adu 8 kiment:$(playerNames[g.adu8kiment])")
+        print(io, "\n\nID: \""); print(io, g, true); print(io, "\"")
+    end    
 end
+
+display(g::GameState) = print(STDOUT, g, false)
+
 
 #The valid card to play in this trick (if there is already a card on the table)
 function validMoves(g)
