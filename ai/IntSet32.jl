@@ -15,6 +15,8 @@ immutable CardSet32 <: AbstractSet
     cs::UInt32
 end
 
+#IDEA offset as type parameter -> CardSet32{:offset}, CardSet32{:5} -> get it with eltype
+
 typealias Card CardSet32 #a card is a card set with one element
 
 CardSet32() = CardSet32(UInt32(0))
@@ -34,6 +36,7 @@ function <(cs1::Card, cs2::Card)
 end
 
 eltype(cs1::CardSet32) = UInt32
+eltype(::Type{CardSet32}) = UInt32
 
 union(cs1::CardSet32, cs2::CardSet32) = CardSet32(cs1.cs | cs2.cs)
 union(cs1::CardSet32, css...) = union(cs1, union(css...))

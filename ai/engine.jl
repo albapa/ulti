@@ -133,7 +133,7 @@ immutable GameState
     #default constructor
     function GameState(contract::Contract, pakli::CardSet, asztal::CardSet,
         talon::CardSet, playerStates::Tuple{PlayerState,PlayerState,PlayerState}, 
-        currentPlayer::Player=p1, currentSuit::Suit=nosuit, whoseTrick::Player=pX, 
+        currentPlayer::Player=p1, currentSuit::Suit=notrump, whoseTrick::Player=pX, 
         lastTrick::Player = pX , lastTrick7::Player = pX,
         butLastTrick8::Player = pX , adu7kiment::Player=pX, adu8kiment::Player=pX,
         lastTrickFogottUlti::Player=pX, tricks::UInt8 = 0x0, felvevoTricks = 0x0, ellenvonalTricks = 0x0,
@@ -185,39 +185,79 @@ end
 #parse a list of cards
 #Format: known cards (e.g. p9) are marked suit (non-capital t,z,m,p) and face (capital 7,8,9,U,F,K,A)
 #Special suits: x: any suit, tz: tok vagy zold, pmz: piros vagy makk vagy zold
-#Special faces: X:any face Y:'nem fontos' [9UFK] .:'kicsi' [789UFK], explicit: pl. [AT] az asz v tizes
+#Special faces: X:any face Z:'nem fontos' [9UFK] .:Y [789UFK], explicit: pl. [AT] az asz v tizes
 #Examples: "pATYY mAKX z.. tK[U987][U987]":
 #Tricky case: a kicsi t tokot, a nagy T Tizest jelol a felreertesek elkerulese vegett
 #Alternativ jelolesek:  also: UVJ, tizes: T vagy 10, tok: t vagy o
 #Players are separated by '|' or '/'
 #Contract and cards are separated by ';'
-function parseCards(s::String)
-    ###doing prefix parsing
+function parseCards(s::AbstractString)
 
     #Ideas: suit then cards x, a(du)bcd, [80%]bFK [20%E] eros(AT), xN10 (fill until 10 cards)
     #first match abcd then single cards then probabilities greedily. 
     #Q: try again if fails? how many times? maybe give warning? Try ALL?
     #bemondas: regexp for p[EHR].x[Ult|Rep|40|4A...]K*  (vagy RK, SK MK) 
 
-    collections = split(s, ['|', '/'])
-    for collection in collections
-        for c in collection
-            suit = nosuit
-                if suit == nosuit #look for first suit
-                    #TODO
-                end
+    regexp = r"(?<suit>(t|z|m|p|n|x|a|b|c|d)+)(?<face>(A|T|K|F|U|9|8|7|X|Y|N)+)\s*"
+
+    # matches = [mtch for mtch in eachmatch(regexp, s)]
+    cs = CardSet()
+    for mtch in eachmatch(regexp, s)
+        suits = CardSet32()
+        for suit in mtch[:suit]
+            suits += suitProperties[suit]
         end
+        faces = CardSet32()
+        for face in mtch[:face]
+            faces += faceProperties[face]
+        end
+
+        cs += suits * faces
     end
-    cards = Array{Array{Card, 1}, 1}()
+
+    return cs
+end
+
+function parseManyCards(s::AbstractString)
+        return [parseCards(cards) for cards in split(s, "|")]
+end
+
+#TODO
+function parseState(s::String)
+    if contains(s, ";")
+        contractAndState = split(s, ';')
+        if length(contractAndState) > 2 throw("too many ;-s") end
+        contract = parseContract(contractAndState[1])
+        stateS = contractAndState[2]
+    else
+        contract = nocontract
+        stateS = s
+    end
+
+    if contains(stateS, ":") #full canonical state
+        xxx = split(stateS, [':', '|']) #TODO
+    else
+        cards = parseManyCards(stateS)
+    end
+
+
+
+    # collections = split(s, ['|', '/'])
+    # for collection in collections
+    #     cs = parseCards(collection)
+
+    # #     for c in collection
+    #         suit = notrump
+    #             if suit == notrump #look for first suit
+    #                 #TODO
+    #             end
+    #     end
+    # end
+    # cards = Array{Array{Card, 1}, 1}()
     #parse suits, parse faces
 
     #deal fix cards, then coloured cards (px), then multicouloured cards (pz.) then the rest (xx, xA)
 end
-
-function ps(g::GameState, player::Player)
-    return g.playerStates[player]
-end
-
 #match cards to a pattern
 #Example: "pAKxx zT7x mKF tx" , full deck
 #Eliminate by rows (every spot must have one card)
@@ -347,10 +387,14 @@ function commitMany!(cardSlots, isDone, indices, cardsToCommit, cards)
     return cards
 end
 
+function ps(g::GameState, player::Player)
+    return g.playerStates[player]
+end
+
 #Evaluate the score based on the game state
 #if the game is over, it returns the final score
 #otherwise the sum of contracts that have been decided
-#nosuit contracts yield 0
+#notrump contracts yield 0
 #TODO instead of Int, return (10,-5,-5) for proper handling of csendesUlti and csendesDuri
 function score(g::GameState, ce::ContractElement)
     #TODO: maybe check after full tricks only?
@@ -497,8 +541,14 @@ function print(io::IO, pstate::Tuple{PlayerState, PlayerState, PlayerState}, sho
     if shortFormat
         for pl in pstate
             print(io, pl.hand, true); print(io, "|")
+        end
+        for pl in pstate
             print(io, pl.discard, true); print(io, "|")
+        end
+        for pl in pstate
             print(io, pl.negyven); print(io, "|")
+        end
+        for pl in pstate
             print(io, pl.husz); print(io, "|")
         end
     else
@@ -507,7 +557,7 @@ function print(io::IO, pstate::Tuple{PlayerState, PlayerState, PlayerState}, sho
             print(io, pl.hand, false)
             println(io); println(io)
         end
-        println(io); println(io)
+        println(io)
         for pl in pstate
             print(io, playerNames[pl.player]); print(io, " ütései: ")
             print(io, pl.discard, false)
@@ -520,10 +570,11 @@ display(pstate::Tuple{PlayerState, PlayerState, PlayerState}) = print(STDOUT, ps
 
 function print(io::IO, g::GameState, shortFormat::Bool=true)
     if shortFormat
-        print(io, g.contract, true); print(io, "|")
-        print(io, g.asztal, true); print(io, "|")
+        print(io, g.contract, true); print(io, ";")
         print(io, g.playerStates, true); print(io, "|")
         print(io, g.talon, true); print(io, "|")
+        print(io, g.asztal, true); print(io, "|")
+        #TODO: additional parameters separated by ":"
     else
         println();print(io, g.contract, false); println(io)
         print(io, "\nAsztal: "); print(io, g.asztal, false); println(io); println(io); println(io)
@@ -553,7 +604,7 @@ function validMoves(g)
 
     #sorrend: felulutni szinbol, szin, felulutni adu, adu, egyeb
     if length(g.asztal) > 0 #mar van egy szin
-        assert(g.currentSuit != nosuit)
+        assert(g.currentSuit != notrump)
         enSuit = sameSuit(valid, g.currentSuit)
         if length(enSuit) > 0
             if g.currentSuit != g.contract.suit && !isempty(aduk(g.asztal, g.contract.suit)) #ha mar aduval utottek nem kell felul utni
@@ -711,7 +762,7 @@ function newState(g::GameState, card::Card)
         playerStates[whoseTrick] = newDiscard(playerStates[whoseTrick], discard)
         asztal = CardSet()
 
-        currentSuit = nosuit
+        currentSuit = notrump
         currentPlayer = whoseTrick
         whoseTrick = pX
 
@@ -732,8 +783,12 @@ function engineTest()
 end
 
 function parseTest()
+    parseCards("pApTpKpUp7mKmUm8z9tT")
+    parseCards("pATKU7 mKU8 z9 tT")
+    # parseCards("pApTpKpUp7mKmUm8z9tT;pFp9p8mAmFm7zKzFz7tF;mTm9zAzTzUz8tAtKt8t7")
+    parseCards("pApTpKpUp7mKmUm8z9tT|pFp9p8mAmFm7zKzFz7tF|mTm9zAzTzUz8tAtKt8t7")
     parseCards("pATKU7 mKU8 z9 tT | pF98 mAF7 zKF7 tF | mT9 zATU8 tAK87")
-    parseCards("❤️️ ️️A ❤️️ ️️T ❤️️ ️️K ❤️️ ️️U ❤️️ ️️7 🌰 K 🌰 U 🌰 8 🍃 9 🎃 T | ❤️️️️ ️️F ❤️️ ️️9 ❤️️ ️️8 🌰 A 🌰 F 🌰 7 🍃 K 🍃 F 🍃 7 🎃 F |  T 🌰 9 🍃 A 🍃 T 🍃 U 🍃 8 🎃 A 🎃 K 🎃 8 🎃 7", )
+    # parseCards("❤️️ ️️A ❤️️ ️️T ❤️️ ️️K ❤️️ ️️U ❤️️ ️️7 🌰 K 🌰 U 🌰 8 🍃 9 🎃 T | ❤️️️️ ️️F ❤️️ ️️9 ❤️️ ️️8 🌰 A 🌰 F 🌰 7 🍃 K 🍃 F 🍃 7 🎃 F |  T 🌰 9 🍃 A 🍃 T 🍃 U 🍃 8 🎃 A 🎃 K 🎃 8 🎃 7", )
     parseCards("pAKxx mTxx tX zA7k")
     parseCards("xXXXXXXXXXX")
     parseCards("xXXXXXXXXXXXX|xXXXXXXXXXX|xXXXXXXXXXX")
@@ -742,9 +797,9 @@ function parseTest()
     parseCards("[80%]aXXXX [10%]aXXXXX [5%]aXXX [5%]aXXXXXX xN10")
     #hibas
 
-    parseContract("EpUltK")
+    parseContract("pEUltKE")
     parseContract("pRep")
-    parseContract("Ep") #parti
+    parseContract("Ep") #piros parti
     parseContract("EpEK") #elolrol kontra parti
     parseContract("EpHK") #elolrol kontra parti
     parseContract("EpEKHRK") #elolrol kontra hatulrol rekontra
@@ -752,5 +807,5 @@ function parseTest()
     parseContract("p EP RRep RCsu") #parti
     parseContract("4T") #szintelen 4T
     parseContract("H Bet") #szintelen betli
-    parseContract("H pTerbet")
+    parseContract("H pTbet")
 end

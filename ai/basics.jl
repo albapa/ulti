@@ -3,7 +3,7 @@
 ##############
 include("IntSet32.jl")
 using Memoize
-import Base: show, <, copy, print
+import Base: show, <, copy, print, isequal, ==
 DEBUG = true
 UNSAFE = false #assert, type safety, etc. off
 
@@ -47,6 +47,9 @@ const pK = CardSet32(UInt32(1) << 29)
 const pT = CardSet32(UInt32(1) << 30)
 const pA = CardSet32(UInt32(1) << 31)
 
+const anycard = xX = 🌠 = CardSet32(0xFFFFFFFF)
+const nocard = ⬜ =CardSet32(0x00000000)
+
 const deck = Dict([
     t7 => ("t7", "🎃 7"), t8 => ("t8", "🎃 8"), t9 => ("t9", "🎃 9"), tU => ("tU", "🎃 U"), tF => ("tF", "🎃 F"), tK => ("tK", "🎃 K"), tT => ("tT", "🎃 T"), tA => ("tA", "🎃 A"),
     z7 => ("z7", "🍃 7"), z8 => ("z8", "🍃 8"), z9 => ("z9", "🍃 9"), zU => ("zU", "🍃 U"), zF => ("zF", "🍃 F"), zK => ("zK", "🍃 K"), zT => ("zT", "🍃 T"), zA => ("zA", "🍃 A"),
@@ -56,14 +59,32 @@ const deck = Dict([
 
 function print(io::IO, cs::CardSet32, shortForm=true)
     if isempty(cs) return end
-    for card in cs
-      shortForm ? print(io, deck[card][1]): print(io, deck[card][2], " ")
+
+    if shortForm
+        currentSuit = notrump
+        for card in cs
+            suit, face = SuitFace(card)
+            if suit == currentSuit 
+                print(io, faceProperties[face][end])
+            else
+                print(io, deck[card][1])
+                currentSuit = suit
+            end
+        end
+    else    
+        for card in cs
+          print(io, deck[card][2], " ")
+        end
+    end
+end
+
+function print(io::IO, cs::Vector{CardSet32}, shortForm=true)
+    for crd in cs
+      print(io, crd, shortForm); println()
     end
 end
 
 display(cs::CardSet32) = print(STDOUT, cs, false)
-
-print(io::IO, cs::Vector{CardSet32}, shortForm=true) = print(io, CardSet32(cs), shortForm)
 display(cs::Vector{CardSet32}) = print(STDOUT, cs, false)
 
 typealias Suit CardSet32
@@ -71,13 +92,28 @@ typealias Suit CardSet32
     const z = union(z7,z8,z9,zU,zF,zK,zT,zA) #Zöld
     const m = union(m7,m8,m9,mU,mF,mK,mT,mA) #Makk
     const p = union(p7,p8,p9,pU,pF,pK,pT,pA) #Piros
-    const nosuit = CardSet32() #Szín nélküli (ászkirályos) vagy még nem tudjuk (pl. hátulról bemondott négy tízesnélÖ
+    const nosuit = notrump = CardSet32() #Szín nélküli (ászkirályos) vagy még nem tudjuk (pl. hátulról bemondott négy tízesnélÖ
+    const anySuit = union(t, z, m, p) #any
+    const a = b = c = d = CardSet32() #undefined... yet
+
 const suitProperties = Dict([
     (t, (["Tök", "tok", "🎃", "t"], 3)), #Halloween-kor TOK = 7 :)
     (z, (["Zöld", "zold", "🍃", "z"], 4)),
     (m, (["Makk", "🌰", "m"], 5)),
     (p, (["Piros", "❤️️", "p"], 6)), 
-    (nosuit, (["Színtelen", "nosuit", "sz"], 0))]) 
+    (notrump, (["Színtelen", "notrump", "sz", "n"], 0)),
+
+    ('t', t),
+    ('z', z),
+    ('m', m),
+    ('p', p),
+    ('n', notrump),
+    ('x', anySuit),
+    ('a', a),
+    ('b', b),
+    ('c', c),
+    ('d', d),
+    ]) 
 
 typealias Face CardSet32
     const _7 = union(t7, z7, m7, p7) #hetes
@@ -89,9 +125,28 @@ typealias Face CardSet32
     const T  = union(tT, zT, mT, pT) #tízes
     const A  = union(tA, zA, mA, pA) #ász
     const AT = union(T, A)
-# const faceProperties = Dict([
-#     (_7, (["Hetes", "7"], 3)),
-# ) :)
+    const X  = union(_7, _8, _9, U, F, K, T, A) #barmelyik
+    const Y  = union(_7, _8, _9, U, F, K) #kicsi
+    const N  = union(_9, U, F, K)   #nem fontos
+const faceProperties = Dict(
+    _7 => ["Hetes", "7"],
+    _8 => ["Nyolcas", "8"],
+    _9 => ["Kilences", "9"],
+    U => ["Alsó", "U"],
+    F => ["Felső", "F"],
+    K => ["Király", "K"],
+    T => ["Tízes", "T"],
+    A => ["Ász", "A"],
+
+    '7' => _7,
+    '8' => _8,
+    '9' => _9,
+    'U' => U,
+    'F' => F,
+    'K' => K,
+    'T' => T,
+    'A' => A,
+) 
 
 #TODO const faceProperties = Dict([(t, ("Tök", 3)), (z, ("Zöld", 4)), (m, ("Makk", 5)), (p, ("Piros", 6))]) #Halloween-kor TOK = 7 :)
 
@@ -123,7 +178,7 @@ Card(suit::Suit, face::Face) = intersect(suit, face)
     else
         face1 = UInt64(face1.cs) #to make sure the <<= will not overflow
         face2 = UInt64(face2.cs) 
-        if trump == nosuit #szintelen jateknal a tizes alulra megy, a kilences es az also koze
+        if trump == notrump #szintelen jateknal a tizes alulra megy, a kilences es az also koze
             if UInt64(_9.cs) < face1 != T face1 <<= 4 end #UFK a T fole, A meg feljebb
             if UInt64(_9.cs) < face2 != T face2 <<= 4 end #UFK a T fole, A meg feljebb
         end
@@ -134,9 +189,9 @@ end
 #TODO: trumping is a mess - rewrite
 #support structure for trumping
 largerThan = Dict{Tuple{Card, Suit}, CardSet32}()
-for (card1, x) in deck
-    for (card2, x) in deck
-        for trump in [t, z, m, p, nosuit]
+for (card1, s1) in deck
+    for (card2, s2) in deck
+        for trump in [t, z, m, p, notrump]
             if !haskey(largerThan, (card1, trump)) 
                 largerThan[(card1, trump)] = CardSet32()
             end
@@ -243,14 +298,14 @@ const modositoProperties = Dict([
 
 
 typealias Kontra UInt8
-    EK = UInt8(4)
-    HK = UInt8(2)
+    KE = UInt8(4)
+    KH = UInt8(2)
 
 const kontraProperties = Dict([
-  (EK, ["Elölről kontra",  "EK"]),
-  (EK, ["Hátulról kontra", "HK"]),
+  (KE, ["Elölről kontra",  "KE"]),
+  (KH, ["Hátulról kontra", "KH"]),
 ])
-typealias Kontrak Array{Kontra, 1} #pl. Kontrak([EK,EK,HK]) az elolrol kontra, elolrol rekontra es hatulrol szub - 32x
+typealias Kontrak Array{Kontra, 1} #pl. Kontrak([KE,KE,KH]) az elolrol kontra, elolrol rekontra es hatulrol szub - 32x
 
 # function show(Kontrak) end #kiirja a kontra, re, szub, mord, stb. -t
 
@@ -280,6 +335,10 @@ immutable Contract
     contracts::Array{ContractElement}
     totalvalue::Number
 end
+
+const nocontract = Contract(notrump,[],0)
+isequal(c1::Contract, c2::Contract) = isequal(c1.suit, c2.suit) && isequal(c1.contracts, c2.contracts)
+==(c1::Contract, c2::Contract) = isequal(c1::Contract, c2::Contract)
 
 function copy(contract::Contract)
     #TODO: deep copy of contracts? - maybe not for performance reasons
@@ -322,9 +381,9 @@ for suit in [t,z,m,p]
     contractValues[(suit, negyTizes, hatulrol)] = 55
 end
 #szintelen bemondasok
-contractValues[(nosuit, negyTizes, hatulrol)] = 55 #TODO: has to be declared and set later
-contractValues[(nosuit, betli, hatulrol)] = 30
-contractValues[(nosuit, redurchmars, hatulrol)] = 144
+contractValues[(notrump, negyTizes, hatulrol)] = 55 #TODO: has to be declared and set later
+contractValues[(notrump, betli, hatulrol)] = 30
+contractValues[(notrump, redurchmars, hatulrol)] = 144
 
 #all the strings needed for parsing lookups
 # parseTokens = Vector()
@@ -336,6 +395,9 @@ contractValues[(nosuit, redurchmars, hatulrol)] = 144
 # end
 #
 function print(io::IO, contract::Contract, shortFormat::Bool=true)
+
+    if contract == nocontract return "" end
+
     if !shortFormat
         print(io, "Bemondás: ", suitProperties[contract.suit][1][1], " ")
     else
@@ -350,7 +412,7 @@ end
 display(contract::Contract) = print(STDOUT, contract, false)
 
 function parseContract(contract::String)
-    regexp = r"(t|z|m|p|a|b|c|d|s|nt|sz)? ( ([Ee]|[Rr]|[Hh]|Elolrol|Ramondva|Hatulrol)? (Passz|Parti|semmi|P|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd)? (EK*HK*|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord)? )*"
+    regexp = r"(t|z|m|p|a|b|c|d|s|nt|sz)? ( ([Ee]|[Rr]|[Hh]|Elolrol|Ramondva|Hatulrol)? (Passz|Parti|semmi|P|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd)? (KE*KH*|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord)? )*"
 end
 
 ##############

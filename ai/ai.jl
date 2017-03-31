@@ -255,6 +255,8 @@ end
 #use existing probabilities for hand distribution
 #and hypergeometric probabilities otherwise
 function MonteCarlo()
+
+    #@parallel (vcat) for ... end | or use SharedArray to accumulate results in parallel for
 end
 
 ##############
