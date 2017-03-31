@@ -109,8 +109,8 @@ const suitProperties = Dict([
     ('p', p),
     ('n', notrump),
     ('x', anySuit),
-    ('a', a),
-    ('b', b),
+    ('a', a), #adu?
+    ('b', b), 
     ('c', c),
     ('d', d),
     ]) 
@@ -127,7 +127,8 @@ typealias Face CardSet32
     const AT = union(T, A)
     const X  = union(_7, _8, _9, U, F, K, T, A) #barmelyik
     const Y  = union(_7, _8, _9, U, F, K) #kicsi
-    const N  = union(_9, U, F, K)   #nem fontos
+    const Z  = union(_9, U, F, K)   #nem fontos
+
 const faceProperties = Dict(
     _7 => ["Hetes", "7"],
     _8 => ["Nyolcas", "8"],
@@ -146,6 +147,10 @@ const faceProperties = Dict(
     'K' => K,
     'T' => T,
     'A' => A,
+    "AT" => AT,
+    'X' => X,
+    'Y' => Y,
+    'Z' => Z,
 ) 
 
 #TODO const faceProperties = Dict([(t, ("Tök", 3)), (z, ("Zöld", 4)), (m, ("Makk", 5)), (p, ("Piros", 6))]) #Halloween-kor TOK = 7 :)
@@ -411,8 +416,13 @@ end
 
 display(contract::Contract) = print(STDOUT, contract, false)
 
-function parseContract(contract::String)
-    regexp = r"(t|z|m|p|a|b|c|d|s|nt|sz)? ( ([Ee]|[Rr]|[Hh]|Elolrol|Ramondva|Hatulrol)? (Passz|Parti|semmi|P|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd)? (KE*KH*|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord)? )*"
+function parseContract(contractS::String)
+    regexp = r"(<suit>t|z|m|p|a|b|c|d|s|n|nt|sz)? (<modosito>([Ee]|[Rr]|[Hh]|Elolrol|Ramondva|Hatulrol)? (<bem>Passz|Parti|semmi|P|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd)? (<kontrak>KE*|KH*|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord)? (<value>[0-9]*)?)*"
+
+    for mtch in eachmatch(regexp, contractS)
+        #TODO
+    end
+
 end
 
 ##############

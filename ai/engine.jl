@@ -198,7 +198,7 @@ function parseCards(s::AbstractString)
     #Q: try again if fails? how many times? maybe give warning? Try ALL?
     #bemondas: regexp for p[EHR].x[Ult|Rep|40|4A...]K*  (vagy RK, SK MK) 
 
-    regexp = r"(?<suit>(t|z|m|p|n|x|a|b|c|d)+)(?<face>(A|T|K|F|U|9|8|7|X|Y|N)+)\s*"
+    regexp = r"(?<suit>(t|z|m|p|n|x|a|b|c|d)+)(?<face>(A|T|K|F|U|9|8|7|X|Y|X|N[0-9]+)+)\s*"
 
     # matches = [mtch for mtch in eachmatch(regexp, s)]
     cs = CardSet()
@@ -214,6 +214,8 @@ function parseCards(s::AbstractString)
 
         cs += suits * faces
     end
+
+    #TODO: N cards, [80%], X,Y,Z, a,b,c,d,etc.
 
     return cs
 end
@@ -783,18 +785,18 @@ function engineTest()
 end
 
 function parseTest()
-    parseCards("pApTpKpUp7mKmUm8z9tT")
-    parseCards("pATKU7 mKU8 z9 tT")
-    # parseCards("pApTpKpUp7mKmUm8z9tT;pFp9p8mAmFm7zKzFz7tF;mTm9zAzTzUz8tAtKt8t7")
-    parseCards("pApTpKpUp7mKmUm8z9tT|pFp9p8mAmFm7zKzFz7tF|mTm9zAzTzUz8tAtKt8t7")
-    parseCards("pATKU7 mKU8 z9 tT | pF98 mAF7 zKF7 tF | mT9 zATU8 tAK87")
-    # parseCards("❤️️ ️️A ❤️️ ️️T ❤️️ ️️K ❤️️ ️️U ❤️️ ️️7 🌰 K 🌰 U 🌰 8 🍃 9 🎃 T | ❤️️️️ ️️F ❤️️ ️️9 ❤️️ ️️8 🌰 A 🌰 F 🌰 7 🍃 K 🍃 F 🍃 7 🎃 F |  T 🌰 9 🍃 A 🍃 T 🍃 U 🍃 8 🎃 A 🎃 K 🎃 8 🎃 7", )
-    parseCards("pAKxx mTxx tX zA7k")
-    parseCards("xXXXXXXXXXX")
-    parseCards("xXXXXXXXXXXXX|xXXXXXXXXXX|xXXXXXXXXXX")
-    parseCards("aAxx7 bATxx cXX")
-    parseCards("aAxx7 bATxx cXX dXX")
-    parseCards("[80%]aXXXX [10%]aXXXXX [5%]aXXX [5%]aXXXXXX xN10")
+    parseManyCards("pApTpKpUp7mKmUm8z9tT")
+    parseManyCards("pATKU7 mKU8 z9 tT")
+    # parseManyCards("pApTpKpUp7mKmUm8z9tT;pFp9p8mAmFm7zKzFz7tF;mTm9zAzTzUz8tAtKt8t7")
+    parseManyCards("pApTpKpUp7mKmUm8z9tT|pFp9p8mAmFm7zKzFz7tF|mTm9zAzTzUz8tAtKt8t7")
+    parseManyCards("pATKU7 mKU8 z9 tT | pF98 mAF7 zKF7 tF | mT9 zATU8 tAK87")
+    # parseManyCards("❤️️ ️️A ❤️️ ️️T ❤️️ ️️K ❤️️ ️️U ❤️️ ️️7 🌰 K 🌰 U 🌰 8 🍃 9 🎃 T | ❤️️️️ ️️F ❤️️ ️️9 ❤️️ ️️8 🌰 A 🌰 F 🌰 7 🍃 K 🍃 F 🍃 7 🎃 F |  T 🌰 9 🍃 A 🍃 T 🍃 U 🍃 8 🎃 A 🎃 K 🎃 8 🎃 7", )
+    parseManyCards("pAKXX mTXX tX zA7N")
+    parseManyCards("xXXXXXXXXXX")
+    parseManyCards("xXXXXXXXXXXXX|xXXXXXXXXXX|xXXXXXXXXXX")
+    parseManyCards("aAXX7 bATXX cXX")
+    parseManyCards("aAXX7 bATXX cXX dXX")
+    parseManyCards("[80%]aXXXX [10%]aXXXXX [5%]aXXX [5%]aXXXXXX xN10")
     #hibas
 
     parseContract("pEUltKE")
