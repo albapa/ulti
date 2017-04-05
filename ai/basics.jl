@@ -83,9 +83,15 @@ function print(io::IO, cs::Vector{CardSet32}, shortForm=true)
       print(io, crd, shortForm); println()
     end
 end
+function print(io::IO, cs::Vector{Vector{CardSet32}}, shortForm=true)
+    for crd in cs
+      print(io, crd, shortForm); println("---")
+    end
+end
 
 display(cs::CardSet32) = print(STDOUT, cs, false)
 display(cs::Vector{CardSet32}) = print(STDOUT, cs, false)
+display(cs::Vector{Vector{CardSet32}}) = print(STDOUT, cs, false)
 
 typealias Suit CardSet32
     const t = union(t7,t8,t9,tU,tF,tK,tT,tA) #Tök
@@ -125,6 +131,8 @@ typealias Face CardSet32
     const T  = union(tT, zT, mT, pT) #tízes
     const A  = union(tA, zA, mA, pA) #ász
     const AT = union(T, A)
+    const FK = union(F, K)    
+    const _78 = union(_7, _8)    
     const X  = union(_7, _8, _9, U, F, K, T, A) #barmelyik
     const Y  = union(_7, _8, _9, U, F, K) #kicsi
     const Z  = union(_9, U, F, K)   #nem fontos
@@ -148,6 +156,8 @@ const faceProperties = Dict(
     'T' => T,
     'A' => A,
     "AT" => AT,
+    "FK" => FK,
+    "78" => _78,
     'X' => X,
     'Y' => Y,
     'Z' => Z,

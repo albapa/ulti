@@ -201,7 +201,7 @@ function parseCards(s::AbstractString)
     regexp = r"(?<suit>(t|z|m|p|n|x|a|b|c|d)+)(?<face>(A|T|K|F|U|9|8|7|X|Y|X|N[0-9]+)+)\s*"
 
     # matches = [mtch for mtch in eachmatch(regexp, s)]
-    cs = CardSet()
+    cs = Vector{CardSet}()
     for mtch in eachmatch(regexp, s)
         suits = CardSet32()
         for suit in mtch[:suit]
@@ -212,7 +212,7 @@ function parseCards(s::AbstractString)
             faces += faceProperties[face]
         end
 
-        cs += suits * faces
+        push!(cs, suits * faces)
     end
 
     #TODO: N cards, [80%], X,Y,Z, a,b,c,d,etc.

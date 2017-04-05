@@ -262,3 +262,13 @@ end
 ##############
 #Tests
 ##############
+
+
+##############
+#Erdekes partik
+##############
+erdekesPartik = [
+"pAFZ8 mAFXX zTKYY | pTX7 mTX zAXX tYY | tA xXXXXXXXXX", #vege: asszal ut, F-vel kihajtja a 10-est, 8-asra adu hetes marad bennt
+"pA p[FK] p[78] b[FK]YY | p0 bAT cA dAY | xXXXXX", #az indokolatlan kontra
+"pAU8 mAFUX tAT zU| zATXX7 pT7 mAX tX | xXXXXX | mY tY",
+]
