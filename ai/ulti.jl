@@ -6,10 +6,7 @@ include("ai.jl")
 #Engine runtime loop
 ##############
 g = GameState(
-  Contract(p, [ContractElement(elolrol, ulti, [], 96), ContractElement(elolrol, parti, [], 24)], 120), #elolrol piros ulti (+ passz)
-  CardSet(), #pakli ures (kiosztva)
-  CardSet(), #asztal ures
-  CardSet([t9, tU]), #talon
+  Contract(p, [ContractElement(elolrol, ulti, Kontrak(), 96), ContractElement(elolrol, parti, [KH], 48)], 144), #elolrol piros ulti (+ passz)
   (
     PlayerState(
       Player(1),
@@ -27,6 +24,9 @@ g = GameState(
       CardSet(), UInt8(0),UInt8(0), #nincs meg utese, 20 vagy 40
     )
   ),
+  CardSet(), #pakli ures (kiosztva)
+  CardSet(), #asztal ures
+  CardSet([t9, tU]), #talon
   p1 #current player
 )
 

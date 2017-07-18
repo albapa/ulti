@@ -127,6 +127,3 @@ function rand(rng::AbstractRNG, cs1::CardSet32)
     cs1[rand(rng, 1:length(cs1))]
     # rand(rng, toArray(cs1)) #TODO more efficiency: make set indexible by getindex
 end
-
-
-#TODO: + * - and $ for CardSet32

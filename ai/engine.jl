@@ -1,7 +1,7 @@
 include("basics.jl")
 # include("IntSet32.jl")
 import DataStructures
-import Base: copy, union, in, intersect
+import Base: copy, union, in, intersect, parse
 import Combinatorics: Combinations
 # import Base: complement
 
@@ -55,13 +55,13 @@ aduk(cs::CardSet, adu::Suit) = intersect(cs, adu)
 
 #Players
 typealias Player UInt8
-    p1=UInt8(1) 
-    p2=UInt8(2) 
-    p3=UInt8(3) 
-    p4=UInt8(4) 
-    p5=UInt8(5) 
-    p6=UInt8(6) 
-    pX=UInt8(7)
+    p1=Player(1) 
+    p2=Player(2) 
+    p3=Player(3) 
+    p4=Player(4) 
+    p5=Player(5) 
+    p6=Player(6) 
+    pX=Player(7)
 const playerNames = Dict([
     (p1, "Alfa "),
     (p2, "Béla "),
@@ -87,6 +87,10 @@ immutable PlayerState
     husz::UInt8 #0-3
 end
 
+function PlayerState(player::Player, hand::CardSet)
+    PlayerState(player, hand, CardSet(), UInt8(0), UInt8(0))
+end
+
 function newHand(ps::PlayerState, hand::CardSet)
     PlayerState(ps.player, hand, ps.discard, ps.negyven, ps.husz)
 end
@@ -99,20 +103,41 @@ function newNegyvenHusz(ps::PlayerState, negyven::UInt8, husz::UInt8)
     PlayerState(ps.player, ps.hand, ps.discard, negyven, husz)
 end
 
+#State for a whole gaming session including scores, etc.
+type sessionState
+    scores::Array{Tuple{Player, Int}}
+end
+
+#Game State for contract phase
+type licitState
+    contract::Contract  #mi a bemondas
+
+    pakli::CardSet       # leosztatlan pakli
+
+    playerStates::Array{PlayerState}
+
+    currentPlayer::Player
+    firstPlayer::Player
+    contractHistory::Array{Tuple{Player, Contract}}
+    
+    function licitState()
+        # Array{Tuple{Player, Contract}}()
+        # new()
+    end
+
+end
+
+
 #The game state
 #IMPORTANT: as it is copied with shallow copy
 #   any field (such as contract) that changes across moves must not be referenced
 #   or should be explicitly deep copied by the copy constructor
 immutable GameState
     contract::Contract  #mi a bemondas
-
+    playerStates::Tuple{PlayerState,PlayerState,PlayerState}
     pakli::CardSet       # leosztatlan pakli
     asztal::CardSet  # asztal kozepe - here order matters (pl. 🌰K-ra adu 🎃9 nem ugyanaz mint adu 🎃9-re 🌰K dobas: az egyikre adut kell tenni, a masikra makkot ha van) thus it is not a set
     talon::CardSet      # talon
-
-    # playerStates::Array{PlayerState}
-    playerStates::Tuple{PlayerState,PlayerState,PlayerState}
-
     currentPlayer::Player
     currentSuit::Suit
     whoseTrick::Player  #o viszi az utest eddig
@@ -131,15 +156,15 @@ immutable GameState
     ellenvonalOsszes::UInt8   #tizesek + aszok + utolso utes + 20 + 40
 
     #default constructor
-    function GameState(contract::Contract, pakli::CardSet, asztal::CardSet,
-        talon::CardSet, playerStates::Tuple{PlayerState,PlayerState,PlayerState}, 
+    function GameState(contract::Contract, playerStates::Tuple{PlayerState,PlayerState,PlayerState},
+        pakli::CardSet, asztal::CardSet, talon::CardSet, 
         currentPlayer::Player=p1, currentSuit::Suit=notrump, whoseTrick::Player=pX, 
         lastTrick::Player = pX , lastTrick7::Player = pX,
         butLastTrick8::Player = pX , adu7kiment::Player=pX, adu8kiment::Player=pX,
         lastTrickFogottUlti::Player=pX, tricks::UInt8 = 0x0, felvevoTricks = 0x0, ellenvonalTricks = 0x0,
         felvevoTizesek::UInt8=0x0, ellenvonalTizesek::UInt8=0x0, felvevoOsszes::UInt8=0x0, ellenvonalOsszes::UInt8=0x0)
 
-      new(contract, pakli, asztal, talon, playerStates, currentPlayer, currentSuit, whoseTrick, lastTrick, lastTrick7, butLastTrick8, adu7kiment, adu8kiment, lastTrickFogottUlti, tricks, felvevoTricks, ellenvonalTricks, felvevoTizesek, ellenvonalTizesek, felvevoOsszes, ellenvonalOsszes)
+      new(contract, playerStates, pakli, asztal, talon, currentPlayer, currentSuit, whoseTrick, lastTrick, lastTrick7, butLastTrick8, adu7kiment, adu8kiment, lastTrickFogottUlti, tricks, felvevoTricks, ellenvonalTricks, felvevoTizesek, ellenvonalTizesek, felvevoOsszes, ellenvonalOsszes)
     end
 
 end
@@ -157,7 +182,7 @@ end
 
 #create from serialised value
 function GameState(s::String)
-
+    parseState(s)
 end
 
 #efficiend storage for game state:
@@ -216,56 +241,98 @@ function parseCards(s::AbstractString)
     end
 
     #TODO: N cards, [80%], X,Y,Z, a,b,c,d,etc.
+    asSet = union(CardSet(), CardSet(), cs...) #extra empty sets if cs is empty or has one element
+    return (cs, asSet)
+end
 
-    return cs
+function parse(CardSet, s)
+    parseCards(s)[2]
 end
 
 function parseManyCards(s::AbstractString)
-        return [parseCards(cards) for cards in split(s, "|")]
+        return [parseCards(cards)[2] for cards in split(s, "|")]
 end
 
-#TODO
+
+function parsePlayerStates(s)
+    paramStrings = split(s, "|")
+    #from typeof(additionalParams)
+    types = [UInt8, CardSet32, CardSet32, UInt8, UInt8]
+    pStates = []
+    for playerString in Iterators.partition(paramStrings, length(types))
+        params = []
+        for (paramString, ptype) in zip(playerString, types)
+            #exceptions are propagated
+            param = parse(ptype, paramString)
+            push!(params, param)
+        end
+        push!(pStates, PlayerState(params...))
+    end
+
+    #return as tuple
+    return (pStates[1], pStates[2], pStates[3])
+end
+
+
+function parseParams(s)
+    paramStrings = split(s, "|")
+    #from typeof(additionalParams)
+    params = []
+    types = [CardSet32, CardSet32, CardSet32, UInt8,CardSet32,UInt8,UInt8,UInt8,UInt8,UInt8,UInt8,UInt8,UInt8,UInt8,UInt8,UInt8,UInt8,UInt8,UInt8]
+    for (paramString, ptype) in zip(paramStrings, types)
+        #exceptions are propagated
+        param = parse(ptype, paramString)
+        push!(params, param)
+    end
+    #give them names
+    # (asztal, talon, currentPlayer, currentSuit, whoseTrick, lastTrick, lastTrick7, butLastTrick8, adu7kiment, adu8kiment, lastTrickFogottUlti, tricks, felvevoTricks, ellenvonalTricks, felvevoTizesek, ellenvonalTizesek, felvevoOsszes, ellenvonalOsszes) = params
+    return params
+end
+
 function parseState(s::String)
-    if contains(s, ";")
-        contractAndState = split(s, ';')
-        if length(contractAndState) > 2 throw("too many ;-s") end
-        contract = parseContract(contractAndState[1])
-        stateS = contractAndState[2]
-    else
-        contract = nocontract
-        stateS = s
+    elements = split(s, ';')
+    if length(elements) > 2
+        #full canonical state
+        contract = parseContract(elements[1])
+        playerStates = parsePlayerStates(elements[2])
+        additionalParams = parseParams(elements[3])
+
+        #create state
+        gs = GameState(contract, playerStates, additionalParams...)
+    else #TODO
+        #heuristic parsing - hands, talon defined, rest is pakli
+        if(length(elements)) == 1
+            contract = nocontract
+        else
+            contract = parseContract(elements[1])
+        end
+
+        cardSets = parseManyCards(elements[end]) #last 
+        cards = matchCards(cardSets, fulldeck)
+        playerStates = (
+            PlayerState(Player(1), cards[1]),
+            PlayerState(Player(2), cards[2]),
+            PlayerState(Player(3), cards[3]),
+            )
+        if length(cardSets) == 3
+            gs = GameState(contract, playerStates, CardSet(), CardSet(), CardSet())                    
+        elseif length(cardSets) == 4 #hands + talon
+            gs = GameState(contract, playerStates, CardSet(), CardSet(), cards[4])                    
+        else #TODO 4-5-6 players? 
+            throw("invalid state")
+        end
     end
 
-    if contains(stateS, ":") #full canonical state
-        xxx = split(stateS, [':', '|']) #TODO
-    else
-        cards = parseManyCards(stateS)
-    end
-
-
-
-    # collections = split(s, ['|', '/'])
-    # for collection in collections
-    #     cs = parseCards(collection)
-
-    # #     for c in collection
-    #         suit = notrump
-    #             if suit == notrump #look for first suit
-    #                 #TODO
-    #             end
-    #     end
-    # end
-    # cards = Array{Array{Card, 1}, 1}()
-    #parse suits, parse faces
-
-    #deal fix cards, then coloured cards (px), then multicouloured cards (pz.) then the rest (xx, xA)
+    return gs
 end
+
 #match cards to a pattern
 #Example: "pAKxx zT7x mKF tx" , full deck
 #Eliminate by rows (every spot must have one card)
 #and columns (one card can only be maximum at one place at the end)
 #if no obvious step, match a card randomly
 #TODO test
+# old commment: deal fix cards, then coloured cards (px), then multicouloured cards (pz.) then the rest (xx, xA)
 function matchCards(cardSlots::Vector{CardSet}, cards::CardSet)
     #build 2D binary (logical) matrix
     #see Sodoku solver at: http://www.math.cornell.edu/~mec/Summer2009/meerkamp/Site/Solving_any_Sudoku_II.html
@@ -542,17 +609,24 @@ end
 function print(io::IO, pstate::Tuple{PlayerState, PlayerState, PlayerState}, shortFormat::Bool=true)
     if shortFormat
         for pl in pstate
+            
+        end
+        for pl in pstate
+            print(io, pl.player); print(io, "|")
             print(io, pl.hand, true); print(io, "|")
-        end
-        for pl in pstate
             print(io, pl.discard, true); print(io, "|")
-        end
-        for pl in pstate
             print(io, pl.negyven); print(io, "|")
-        end
-        for pl in pstate
             print(io, pl.husz); print(io, "|")
         end
+        # for pl in pstate
+        #     print(io, pl.discard, true); print(io, "|")
+        # end
+        # for pl in pstate
+        #     print(io, pl.negyven); print(io, "|")
+        # end
+        # for pl in pstate
+        #     print(io, pl.husz); print(io, "|")
+        # end
     else
         for pl in pstate
             print(io, playerNames[pl.player]); print(io, ": ")
@@ -573,10 +647,18 @@ display(pstate::Tuple{PlayerState, PlayerState, PlayerState}) = print(STDOUT, ps
 function print(io::IO, g::GameState, shortFormat::Bool=true)
     if shortFormat
         print(io, g.contract, true); print(io, ";")
-        print(io, g.playerStates, true); print(io, "|")
-        print(io, g.talon, true); print(io, "|")
+        print(io, g.playerStates, true); print(io, ";")
+        print(io, g.pakli, true); print(io, "|")
         print(io, g.asztal, true); print(io, "|")
-        #TODO: additional parameters separated by ":"
+        print(io, g.talon, true); print(io, "|")
+        additionalParams = [g.currentPlayer, g.currentSuit, g.whoseTrick, g.lastTrick, g.lastTrick7, g.butLastTrick8, g.adu7kiment, g.adu8kiment, g.lastTrickFogottUlti, g.tricks, g.felvevoTricks, g.ellenvonalTricks, g.felvevoTizesek, g.ellenvonalTizesek, g.felvevoOsszes, g.ellenvonalOsszes]
+        for param in additionalParams
+            # print(Int(param))
+            print(param)
+            print("|")
+        end
+
+        #TODO: additional parameters separated by "|"
     else
         println();print(io, g.contract, false); println(io)
         print(io, "\nAsztal: "); print(io, g.asztal, false); println(io); println(io); println(io)
@@ -772,7 +854,7 @@ function newState(g::GameState, card::Card)
         currentPlayer = nextPlayer(g.currentPlayer)
     end
 
-    return GameState(contract, pakli, asztal, talon, (playerStates[1],playerStates[2],playerStates[3]), currentPlayer, currentSuit, whoseTrick, lastTrick, lastTrick7, butLastTrick8, adu7kiment, adu8kiment, lastTrickFogottUlti, tricks, felvevoTricks, ellenvonalTricks, felvevoTizesek, ellenvonalTizesek, felvevoOsszes, ellenvonalOsszes)
+    return GameState(contract, (playerStates[1],playerStates[2],playerStates[3]), pakli, asztal, talon, currentPlayer, currentSuit, whoseTrick, lastTrick, lastTrick7, butLastTrick8, adu7kiment, adu8kiment, lastTrickFogottUlti, tricks, felvevoTricks, ellenvonalTricks, felvevoTizesek, ellenvonalTizesek, felvevoOsszes, ellenvonalOsszes)
 
 end
 

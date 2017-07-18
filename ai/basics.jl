@@ -47,7 +47,7 @@ const pK = CardSet32(UInt32(1) << 29)
 const pT = CardSet32(UInt32(1) << 30)
 const pA = CardSet32(UInt32(1) << 31)
 
-const anycard = xX = 🌠 = CardSet32(0xFFFFFFFF)
+const fulldeck = anycard = xX = 🌠 = CardSet32(0xFFFFFFFF)
 const nocard = ⬜ =CardSet32(0x00000000)
 
 const deck = Dict([
@@ -304,11 +304,13 @@ typealias Modosito UInt8
     elolrol =  UInt8(4)
     ramondva = UInt8(2)
     hatulrol = UInt8(1)
+    sehonnan = UInt8(0)
 
 const modositoProperties = Dict([
-  (elolrol,  ["Elölről",  "Elolrol",  "E"]),
-  (ramondva, ["Rámondva", "ramondva", "R"]),
-  (hatulrol, ["Hátulról", "hatulrol", "H"]),
+  (elolrol,  ["Elölről",  "elolrol",  "e", "E"]),
+  (ramondva, ["Rámondva", "ramondva", "r", "R"]),
+  (hatulrol, ["Hátulról", "hatulrol", "h", "H"]),
+  (sehonnan, [""]),
 ])
 
 
@@ -330,7 +332,18 @@ immutable ContractElement
     bem::AlapBemondas
     kon::Kontrak
     val::Number
- end
+
+end
+
+function ContractElement(suit, modosito, bem, kon, val)
+    modosito = modosito == nothing ? sehonnan : modosito
+    bem = bem == nothing ? semmi : bem
+    kon = kon == nothing ? Kontrak() : kon
+    val = val == nothing ? contractValues[(suit, bem, modosito)] * prod(kon): val
+
+    ContractElement(modosito, bem, kon, val)
+end
+
 
 function print(io::IO, ce::ContractElement, shortFormat::Bool=true)
     print(io, 
@@ -427,11 +440,34 @@ end
 display(contract::Contract) = print(STDOUT, contract, false)
 
 function parseContract(contractS::String)
-    regexp = r"(<suit>t|z|m|p|a|b|c|d|s|n|nt|sz)? (<modosito>([Ee]|[Rr]|[Hh]|Elolrol|Ramondva|Hatulrol)? (<bem>Passz|Parti|semmi|P|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd)? (<kontrak>KE*|KH*|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord)? (<value>[0-9]*)?)*"
+    regexp = r"(?<suit>(t|z|m|p|a|b|c|d|s|n|nt|sz)?)(?<modosito>(E|R|H)?)(?<bemondas>(Passz|Parti|semmi|Par|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd|TDur|TBet)?)(?<kontrak>(KE|KH|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord|K|RE|re|k|K|Re)?)(?<value>([0-9]*)?)\s*"
 
     for mtch in eachmatch(regexp, contractS)
-        #TODO
+        #DEBUG
+        println(mtch)
+        #DEBUG END
+        modosito = sehonnan
+        for (key,val) in modositoProperties
+            if mtch["modosito"] in val
+                modosito = key
+            end
+        end
+        bemondas = semmi
+        for (key,val) in alapBemondasProperties
+            if mtch["bemondas"] in val[2]
+                bemondas = key
+            end
+        end
+
+        #TODO kontrak
+
+        value = isempty(mtch["value"]) ? nothing : parse(Int, mtch["value"])
+
+        # ContractElement(suit, modosito, bemondas, kontrak, value)
     end
+
+    #TODO: total value is sum of ContractElements, except for csendes bemondas
+    #TODO: add csendes bemondas if needed
 
 end
 
