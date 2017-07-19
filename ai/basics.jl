@@ -48,7 +48,7 @@ const pT = CardSet32(UInt32(1) << 30)
 const pA = CardSet32(UInt32(1) << 31)
 
 const fulldeck = anycard = xX = 🌠 = CardSet32(0xFFFFFFFF)
-const nocard = ⬜ =CardSet32(0x00000000)
+const emptydeck = nocard = ⬜ =CardSet32(0x00000000)
 
 const deck = Dict([
     t7 => ("t7", "🎃 7"), t8 => ("t8", "🎃 8"), t9 => ("t9", "🎃 9"), tU => ("tU", "🎃 U"), tF => ("tF", "🎃 F"), tK => ("tK", "🎃 K"), tT => ("tT", "🎃 T"), tA => ("tA", "🎃 A"),
@@ -107,8 +107,10 @@ const suitProperties = Dict([
     (z, (["Zöld", "zold", "🍃", "z"], 4)),
     (m, (["Makk", "🌰", "m"], 5)),
     (p, (["Piros", "❤️️", "p"], 6)), 
-    (notrump, (["Színtelen", "notrump", "sz", "n"], 0)),
+    (notrump, (["Színtelen", "notrump", "sz", "n"], 1)),
+    ]) 
 
+const suitStrings = Dict([
     ('t', t),
     ('z', z),
     ('m', m),
@@ -146,7 +148,9 @@ const faceProperties = Dict(
     K => ["Király", "K"],
     T => ["Tízes", "T"],
     A => ["Ász", "A"],
+) 
 
+const faceStrings = Dict(
     '7' => _7,
     '8' => _8,
     '9' => _9,
@@ -162,7 +166,6 @@ const faceProperties = Dict(
     'Y' => Y,
     'Z' => Z,
 ) 
-
 #TODO const faceProperties = Dict([(t, ("Tök", 3)), (z, ("Zöld", 4)), (m, ("Makk", 5)), (p, ("Piros", 6))]) #Halloween-kor TOK = 7 :)
 
 
@@ -360,7 +363,7 @@ display(ce::ContractElement) = print(STDOUT, ce, false)
 #A bemondas
 immutable Contract
     suit::Suit
-    contracts::Array{ContractElement}
+    contracts::Vector{ContractElement}
     totalvalue::Number
 end
 
@@ -439,36 +442,62 @@ end
 
 display(contract::Contract) = print(STDOUT, contract, false)
 
-function parseContract(contractS::String)
-    regexp = r"(?<suit>(t|z|m|p|a|b|c|d|s|n|nt|sz)?)(?<modosito>(E|R|H)?)(?<bemondas>(Passz|Parti|semmi|Par|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd|TDur|TBet)?)(?<kontrak>(KE|KH|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord|K|RE|re|k|K|Re)?)(?<value>([0-9]*)?)\s*"
+function parseContract(contractS::AbstractString)
+    contractElements = Vector{ContractElement}()
+    
+    regexp = r"(?<suit>(t|z|m|p|a|b|c|d|s|n|nt|sz)?)(?<modosito>(E|R|H)?)(?<bemondas>(Passz|Parti|semmi|Par|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd|TDur|TBet)?)(?<kontrak>(KE|KH|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord|K|RE|re|k|K|Re)*)(?<value>([0-9]*)?)\s*"
+
+    suit = nosuit #remembered between contractElements
+    modosito = sehonnan #remembered between contractElements
 
     for mtch in eachmatch(regexp, contractS)
         #DEBUG
-        println(mtch)
+        # println(mtch)
         #DEBUG END
-        modosito = sehonnan
+
+        #empty string match
+        if isempty(mtch.match)
+            continue
+        end
+
+        for (key,val) in suitProperties
+            if mtch[:suit] in val[1]
+                suit = key
+            end
+        end
         for (key,val) in modositoProperties
-            if mtch["modosito"] in val
+            if mtch[:modosito] in val
                 modosito = key
             end
         end
-        bemondas = semmi
+        bemondas = semmi #this does not carry over
         for (key,val) in alapBemondasProperties
-            if mtch["bemondas"] in val[2]
+            if mtch[:bemondas] in val[2]
                 bemondas = key
             end
         end
 
-        #TODO kontrak
-
+        kontrak = Kontrak() #this does not carry over
+        kontraRegexp = r"(?<kontra>(KE|KH|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord|K|RE|re|k|K|Re)?)\s*"
+        for kontraMatch in eachmatch(kontraRegexp, String(mtch[:kontrak]))
+            for (key,val) in kontraProperties
+                if kontraMatch[:kontra] in val
+                    push!(kontrak, key)
+                end
+            end
+        end
+            
         value = isempty(mtch["value"]) ? nothing : parse(Int, mtch["value"])
 
-        # ContractElement(suit, modosito, bemondas, kontrak, value)
+        ce = ContractElement(suit, modosito, bemondas, kontrak, value)
+        push!(contractElements, ce)
     end
 
-    #TODO: total value is sum of ContractElements, except for csendes bemondas
+    #total value is sum of contractElements, except for csendes bemondas
+    totalvalue = sum(ce.val for ce in contractElements)
     #TODO: add csendes bemondas if needed
-
+    
+    return Contract(suit, contractElements, totalvalue)
 end
 
 ##############

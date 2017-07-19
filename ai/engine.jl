@@ -230,11 +230,12 @@ function parseCards(s::AbstractString)
     for mtch in eachmatch(regexp, s)
         suits = CardSet32()
         for suit in mtch[:suit]
-            suits += suitProperties[suit]
+            suits += suitStrings[suit]
         end
+
         faces = CardSet32()
         for face in mtch[:face]
-            faces += faceProperties[face]
+            faces += faceStrings[face]
         end
 
         push!(cs, suits * faces)
