@@ -9,10 +9,6 @@ global abN = 0
 global gLast=nothing
 #END DEBUG
 
-#RNG
-SEED = 0
-rng = MersenneTwister(SEED)
-# rng = RandomDevice() #truly random
 moves = Dict{Card, Int64}()
 
 #egymas melletti lapok (pl. tF,tU,t9) eleg az egyiket valasztanunk

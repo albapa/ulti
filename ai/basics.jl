@@ -3,7 +3,7 @@
 ##############
 include("IntSet32.jl")
 using Memoize
-import Base: show, <, copy, print, isequal, ==
+import Base: show, <, copy, print, isequal, ==, length
 DEBUG = true
 UNSAFE = false #assert, type safety, etc. off
 
@@ -288,18 +288,21 @@ typealias AlapBemondas UInt8
 #Bemondasok erteke es nevei (elso nev lesz kiirva)
 #TODO: value -> (licit, max, min)
 const alapBemondasProperties = Dict([
-  (semmi,       (0, ["", "semmi", ""])),
-  (ulti,        (4, ["Ulti", "ultimo", "Ult"])),
-  (repulo,      (4, ["Repülő", "repulo", "Rep"], )),
-  (negyvenSzaz, (4, ["40-100", "40 100", "40_100", "negyvenSzaz", "negyvenSzáz", "Negyven Szaz", "Negyven Száz", "40s"])),
-  (huszSzaz,    (8, ["20-100", "20 100", "20_100", "huszSzaz", "húszSzáz", "Husz Szaz", "Húsz Száz", "20s"])),
-  (negyAsz,     (4, ["4 Ász", "4 Asz", "negyAsz", "NégyÁsz", "Negy Asz", "Négy Ász", "4A"])),
-  (durchmars,   (6, ["Durchmars", "Dur"])),
+  (semmi,       (0,  ["", "semmi", ""])),
+  (ulti,        (4,  ["Ulti", "ultimo", "U", "Ult"])),
+  (repulo,      (4,  ["Repülő", "repulo", "R", "Rep"], )),
+  (negyvenSzaz, (4,  ["40-100", "40 100", "40_100", "negyvenSzaz", "negyvenSzáz", "Negyven Szaz", "Negyven Száz", "40s"])),
+  (huszSzaz,    (8,  ["20-100", "20 100", "20_100", "huszSzaz", "húszSzáz", "Husz Szaz", "Húsz Száz", "20s"])),
+  (negyAsz,     (4,  ["4 Ász", "4 Asz", "negyAsz", "NégyÁsz", "Negy Asz", "Négy Ász", "4A"])),
+  (durchmars,   (6,  ["Durchmars", "Dur"])),
   (redurchmars, (12, ["Terített Durchmars", "redurchmars", "TDur"])),
-  (parti,       (1, ["Parti", "Passz", "Par"])),
-  (betli,       (30, ["Betli", "Bet"])), #mert szintelen, nincs szorzo
+  (parti,       (1,  ["Parti", "Passz", "P", "Par"])),
+  (betli,       (30, ["Betli", "B", "Bet"])), #mert szintelen, nincs szorzo
   (rebetli,     (20, ["Terített Betli", "rebetli", "TBet"])),
   (negyTizes,   (55, ["4 Tízes", "4 Tizes", "negyTizes", "NégyTízes", "Negy Tizes", "Négy Tízes", "4T"])),
+  (csendesUlti, (2,  ["Csendes Ulti", "CsendesUlti", "Csu", "CsU"])),
+  # csendesDuri disabled due to computational needs and rarity
+  # (csendesDuri, (3,  ["Csendes Durchmars", "Csendes Duri", "CsendesDuri", "Csd", "CsD"])),
 ])
 
 #Modosito szorzok elolrol bemondott vagy ramondott bemondasokra
@@ -316,18 +319,84 @@ const modositoProperties = Dict([
   (sehonnan, [""]),
 ])
 
+#Players
+typealias Player UInt8
+    p1=Player(1) 
+    p2=Player(2) 
+    p3=Player(3) 
+    p4=Player(4) 
+    p5=Player(5) 
+    p6=Player(6) 
+    pX=Player(7)
+    pN=Player(7)
+const playerNames = Dict([
+    (p1, "Alfa "),
+    (p2, "Béla "),
+    (p3, "Gamma"),
+    (p4, "Delta"),
+    (p5, "Epszi"),
+    (p6, "Tétova"),
+    (pX, ""),    #barmelyik jatekos (null)
+    (pN, ""),    #semelyik jatekos
+    ]) 
 
+nextPlayer(pl::Player, numberOfPlayers=3) = Player(pl % numberOfPlayers + 1)
+nextPlayerOffset(pl::Player, offset::Int, numberOfPlayers=3) = Player(mod(pl - 1 + offset, numberOfPlayers) + 1)
+previousPlayer(pl::Player, numberOfPlayers=3) = nextPlayer(pl, -1)
+# const FELVEVO = p1
+# const ELLENVONAL = [p2, p3]
+# const ELLENFEL1 = p2
+# const ELLENFEL2 = p3
+
+
+#TODO - test
 typealias Kontra UInt8
-    KE = UInt8(4)
-    KH = UInt8(2)
+KE = UInt8(4)
+KH = UInt8(2)
 
 const kontraProperties = Dict([
   (KE, ["Elölről kontra",  "KE"]),
   (KH, ["Hátulról kontra", "KH"]),
 ])
-typealias Kontrak Array{Kontra, 1} #pl. Kontrak([KE,KE,KH]) az elolrol kontra, elolrol rekontra es hatulrol szub - 32x
 
-# function show(Kontrak) end #kiirja a kontra, re, szub, mord, stb. -t
+immutable KontraElement
+    kontrazo::Player #pX ha kozos kontra, kulon re/mordkontranal az eredeti kontrazo van itt
+    kon::Vector{Kontra} #pl. Kontrak([elolrol,elolrol,hatulrol]) az elolrol kontra, elolrol rekontra es hatulrol szub - 32x
+end
+
+immutable Kontrak
+    kon::Vector{KontraElement} #pl. Kontrak([elolrol,elolrol,hatulrol]) az elolrol kontra, elolrol rekontra es hatulrol szub - 32x
+end
+
+function Kontrak() 
+    return Kontrak(Vector{KontraElement}())
+end
+
+function length(kontrak::Kontrak)
+    return length(kontrak.kon)
+end
+
+function multiplier(kontrak::Kontrak)
+    if length(kontrak) == 0
+        return 1
+    end
+    if length(kontrak) == 1
+        return prod(kontrak.kon[1].kon)
+    end
+    #TODO - test
+    if length(kontrak) > 1
+        result = [prod(ktr.kon) for ktr in kontrak.kon]
+        if min(result...) == max(result...)
+            return max(result...)
+        end
+        throw("ambigous multiplier")
+    end
+end
+
+# typealias Kontrak Array{Kontra, 1} #pl. Kontrak([KE,KE,KH]) az elolrol kontra, elolrol rekontra es hatulrol szub - 32x
+
+#TODO
+function show(Kontrak) end #kiirja a kontra, re, szub, mord, stb. -t
 
 #Egy alapbemondas modositokkal
 immutable ContractElement
@@ -335,26 +404,45 @@ immutable ContractElement
     bem::AlapBemondas
     kon::Kontrak
     val::Number
-
 end
 
 function ContractElement(suit, modosito, bem, kon, val)
     modosito = modosito == nothing ? sehonnan : modosito
     bem = bem == nothing ? semmi : bem
     kon = kon == nothing ? Kontrak() : kon
-    val = val == nothing ? contractValues[(suit, bem, modosito)] * prod(kon): val
+    val = val == nothing ? contractValues[(suit, bem, modosito)] * multiplier(kon): val
 
     ContractElement(modosito, bem, kon, val)
 end
 
+function isequal(ce1::ContractElement, ce2::ContractElement)
+    return  isequal(ce1.bem, ce2.bem) &&
+            isequal(ce1.modosito, ce2.modosito) &&
+            isequal(ce1.val, ce2.val) &&
+            isequal(length(ce1.kon), length(ce2.kon))
+end
 
+==(ce1::ContractElement, ce2::ContractElement) = isequal(ce1::ContractElement, ce2::ContractElement)
+hash(ce::ContractElement) = xor(hash(ce.bem), hash(ce.modosito), hash(ce.val), hash(ce.kon.kontrazo), hash(length(ce.kon)))
 function print(io::IO, ce::ContractElement, shortFormat::Bool=true)
     print(io, 
         shortFormat ? modositoProperties[ce.modosito][end] : modositoProperties[ce.modosito][1] * " ",
         shortFormat ? alapBemondasProperties[ce.bem][2][end] : alapBemondasProperties[ce.bem][2][1] * " ")
-        
-    for k in ce.kon
-        print(io, kontraProperties[k][2])
+
+    if ce.kon.kontrazo != pN
+
+        if !shortFormat
+            print(io, playerNames[ce.kon.kontrazo]); print(io, ":")
+        else
+            print(io, ce.kon.kontrazo)
+        end
+
+        for k in ce.kon.honnan
+            print(io, kontraProperties[k][2])
+            if !shortFormat
+                print(io, " ")
+            end
+        end
     end
 end
 
@@ -362,18 +450,28 @@ display(ce::ContractElement) = print(STDOUT, ce, false)
 
 #A bemondas
 immutable Contract
+    felvevo::Player
     suit::Suit
     contracts::Vector{ContractElement}
     totalvalue::Number
 end
 
-const nocontract = Contract(notrump,[],0)
+function Contract(felvevo::Player, suit::Suit, contracts::Vector{ContractElement})
+    #total value is the sum of contractElements, except for csendes bemondas
+    totalvalue = sum(ce.val for ce in contracts if !(ce.bem in [csendesUlti, csendesDuri]))
+    #contracts sorted in canonical order: 
+    #first modosito (elolrol->ramondva->hatulrol) then bemondas
+    sort!(contracts, by=x->(-x.modosito, x.bem))
+    return Contract(felvevo, suit, contracts, totalvalue)
+end
+
+const nocontract = Contract(pX, notrump,[],0)
 isequal(c1::Contract, c2::Contract) = isequal(c1.suit, c2.suit) && isequal(c1.contracts, c2.contracts)
 ==(c1::Contract, c2::Contract) = isequal(c1::Contract, c2::Contract)
 
 function copy(contract::Contract)
     #TODO: deep copy of contracts? - maybe not for performance reasons
-    Contract(contract.suit, contract.contracts, contract.totalvalue)
+    Contract(contract.felvevo, contract.suit, contract.contracts, contract.totalvalue)
 end
 
 @memoize function isUlti(contract::Contract)
@@ -396,11 +494,49 @@ end
 
 @memoize isUltiRepulo(contract::Contract) = isUlti(contract) && isRepulo(contract)
 
+@memoize function isPartiNeeded(contract::Contract)
+    if contract.suit == notrump
+        return false
+    end
+    for ce in contract.contracts
+        if ce.bem in [parti,negyvenSzaz,huszSzaz,durchmars,redurchmars,betli,rebetli,negyTizes]
+            return false
+        end
+    end
+    return true
+end
+
+@memoize function isKontra(contract::Contract)
+    for ce in contract.contracts
+        if length(ce.kon) > 1
+            return true
+        end
+    end
+    return false
+end
+
+@memoize function isParti(contract::Contract)
+    for ce in contract.contracts
+        if ce.bem == parti
+            return true
+        end
+    end
+    return false
+end
+
+@memoize function maxModosito(contract::Contract)
+    result = sehonnan
+    for ce in contract.contracts
+        result = max(result, ce.modosito)
+    end
+    return result
+end
+
 contractValues = Dict{Tuple{Suit,AlapBemondas,Modosito}, Int}()
 #TODO mit lehet elolrol hatulrol es ramondva bemondani
 #szines bemondasok
 for suit in [t, z, m, p]
-    for bem in [parti, negyvenSzaz, ulti, repulo, negyAsz, durchmars, huszSzaz, rebetli, redurchmars]
+    for bem in [parti, negyvenSzaz, ulti, repulo, negyAsz, durchmars, huszSzaz, rebetli, redurchmars, csendesUlti]
         for honnan in [elolrol, ramondva, hatulrol]
             contractValues[(suit, bem, honnan)] = UInt8(honnan) * suitProperties[suit][2] * alapBemondasProperties[bem][1]
         end
@@ -428,30 +564,193 @@ contractValues[(notrump, redurchmars, hatulrol)] = 144
 function print(io::IO, contract::Contract, shortFormat::Bool=true)
 
     if contract == nocontract return "" end
-
     if !shortFormat
-        print(io, "Bemondás: ", suitProperties[contract.suit][1][1], " ")
+        print(io, playerNames[contract.felvevo]); print(io, ":")
+        print(io, suitProperties[contract.suit][1][1], " ")
+        for ce in contract.contracts
+            print(io, ce, shortFormat)
+        end
+        print(io, " ($(contract.totalvalue))")
     else
+        print(io, contract.felvevo); print(io, ":")
         print(io, suitProperties[contract.suit][1][end])
+        for ce in contract.contracts
+            print(io, ce, shortFormat)
+        end
     end
 
-    for ce in contract.contracts
-        print(io, ce, shortFormat)
-    end
 end
 
 display(contract::Contract) = print(STDOUT, contract, false)
 
-function parseContract(contractS::AbstractString)
+#TODO: write test cases for this
+#This will raise an ArgumentException if not OK
+function validateContract(contract::Contract, player::Player=pX, previousBemondas::Contract=nocontract, stage::Modosito=sehonnan)
+    
+    bemondasok = [ce.bem for ce in contract.contracts]
+    previousBemondasok = [ce.bem for ce in previousBemondas.contracts]
+
+    #validity checks
+    # 1. no duplicate (ulti ulti)
+    if unique(bemondasok) != bemondasok
+        throw(ArgumentError("dupla bemondás"))
+    end
+    # 2. szintelen - szines (no notrump ulti)
+    if contract.suit == notrump && 
+        !isempty(bemondasok ∩ [ulti, parti, repulo, negyvenSzaz, huszSzaz, negyAsz, durchmars, csendesUlti])
+        throw(ArgumentError("színtelen ulti/parti/repulo/negyvenSzaz/huszSzaz/durchmars/csendesUlti"))
+    end
+    if contract.suit != notrump && betli in bemondasok
+        throw(ArgumentError("színes betli"))
+    end
+    # 3. parti vs. 40s, 20s, stb.
+    if parti in bemondasok && !isempty(bemondasok ∩ [negyvenSzaz, huszSzaz, durchmars, redurchmars])
+        throw(ArgumentError("Parti + negyvenSzaz/huszSzaz/durchmars/redurchmars"))
+    end
+    # 4. 4T/betli/reduri + semmi
+    if length(bemondasok) > 1 && 
+        (!isempty([negyTizes, betli, rebetli, semmi] ∩ bemondasok) || 
+        contract.suit == notrump && redurchmars in bemondasok)
+        
+        throw(ArgumentError("4 Tízes/betli/rebetli/szintelen redurchmars csak egyedül állhat"))
+    end
+    #5: 40-100 + 20-100 = NO
+    if negyvenSzaz in bemondasok && huszSzaz in bemondasok
+        throw(ArgumentError("40-100 es 20-100 nem lehet együtt"))
+    end
+
+    #6. Elolrol, ramondva, hatulrol modosito stimmeljen 
+    modositok = [ce.modosito for ce in contract.contracts]
+    if hatulrol in modositok && !isempty([elolrol, ramondva] ∩ modositok)
+        throw(ArgumentError("Hátulról és elölről/rámondva bemondások együtt"))
+    end
+    if sehonnan in modositok && !isempty([elolrol, ramondva, hatulrol] ∩ modositok)
+        throw(ArgumentError("Sehonnan és elölről/rámondva/hátulról bemondások együtt"))
+    end
+    for ce in contract.contracts
+        if ce.modosito == ramondva &&
+            (
+                ce.bem in [parti, csendesUlti, betli, rebetli] ||
+                (contract.suit == notrump && ce.bem == redurchmars)
+            )
+            throw(ArgumentError("Rámondva parti/csendesUlti/betli/szintelen redurchmars?"))
+        end
+        if ce.modosito == elolrol &&
+            (
+                ce.bem == negyTizes || 
+                (contract.suit == notrump && ce.bem == redurchmars)
+            )
+
+            throw(ArgumentError("Elölről 4 Tízes/szintelen redurchmars?"))
+        end
+    end
+    
+    #7. Ramondas stimmeljen az elozo bemondassal
+    #minden elolrol bemondas ott legyen, kiveve parti vs. 40sz 20sz, dur
+    if stage == ramondva
+        ramondottak = [ce.bem for ce in contract.contracts if ce.modosito == ramondva]
+        assert(player == previousBemondas.felvevo)
+        for ce in contract.contracts
+            if ce.modosito == elolrol && !(ce in previousBemondas.contracts)
+                #parti elhagyhato ha van 40s, 20s vagy duri
+                if !(ce == parti && !isempty([negyvenSzaz, huszSzaz, durchmars, redurchmars] ∩ ramondottak))
+                    throw(ArgumentError("Elölről bemondás hova tűnt?"))
+                end
+            end
+        end
+    end
+
+    # 8. Kontrak (csak azt lehet megkontrazni ami van, es ahonnan ahol vagyunk)
+    if isKontra(contract)
+        #make sure all bem are the same
+        if bemondasok != previousBemondasok
+            throw(ArgumentError("Kontránál bemondás nem tűnhet el vagy jelenhet meg"))
+        end
+        for i in 1:length(bemondasok)
+            ce = contract.contracts[i]
+            pce = previousBemondasok.contracts[i]
+            if ce.modosito != pce.modosito
+                throw(ArgumentError("Kontránál bemondás ugyanonnan kell hogy jöjjön (elölről, rámondvá, hátulról)"))
+            end
+            if length(ce.kon) < length(pce.kon)
+                throw(ArgumentError("Kevesebb Kontra?"))
+            elseif length(ce.kon) > length(pce.kon) + 1
+                throw(ArgumentError("Dupla Kontra?"))
+            elseif length(ce.kon) > length(pce.kon) #megkontrazta
+                ujkontra = ce.kon.kontrazo[end]
+                if stage == ramondva
+                    throw(ArgumentError("rossz kontra"))
+                elseif stage == elolrol && ujkontra != KE
+                    throw(ArgumentError("Elölről kontra kéne ide"))
+                elseif stage in [hatulrol, ramondva] && ujkontra != KH
+                    throw(ArgumentError("Hátulról kontra kéne ide"))
+                elseif stage == sehonnan
+                    #NOP, probably just parsed
+                end
+
+                if ce.bem in [csendesUlti, csendesDuri]
+                    throw(ArgumentError("Csendes Ulti/Duri kontra?"))
+                end
+    # 9. Sajat bemondast nem lehet kontrazni/szubkontrazni csak rekontrazni/mordkontrazni
+                if  player == previousBemondas.felvevo && length(ce.kon) % 2 == 1
+                    throw(ArgumentError("Saját bemondást nem lehet kontrázni/szubkontrázni csak rekontrázni/mordkontrázni"))
+                end 
+    # TODO: 10. Hatulrol kontrak kezelese:
+    # ha a jatek elkezdodott, lehet kontrazni, felvevo mindig rekontrazhat, + szub/mord stb.
+
+    # TODO: 11. Kulon kontrazodo bemondasok (betli, negyTizes) kezelese:
+            end
+        end
+    end
+
+
+    #11. (nem ramondott) uj bemondas nagyobb legyen mint az elozo
+    if contract.totalvalue < previousBemondas.totalvalue
+        throw(ArgumentError("Bemondás kisebb mint az előző"))
+    end
+    
+    #12. ramondott uj bemondas nem kell, hogy nagyobb legyen
+
+    # previousStage = sehonnan
+    # for ce in previousBemondas.contracts
+    #     previousStage = max(previousStage, ce.modosito)
+    # end
+    if contract.totalvalue == previousBemondas.totalvalue &&
+        !(player == previousBemondas.felvevo && stage == ramondva)  #&& previousStage == elolrol
+
+        throw(ArgumentError("Bemondás ugyanakkora mint az előző"))
+    end
+end
+
+#TODO: heuristic parsing
+function parseContract(contractS::AbstractString, player::Player=pX, previousBemondas::Contract=nocontract, stage::Modosito=sehonnan)
+    contractS = chomp(contractS)
+
+    if isempty(contractS) || contractS=="n" || contractS=="nocontract"
+        return nocontract
+    end
+
+    playerSep = split(contractS, ":")
+    assert(length(playerSep) <= 2)
+
+    if length(playerSep) == 2
+        player = parse(Player, playerSep[1])
+        contractS = playerSep[2]
+    end
+
     contractElements = Vector{ContractElement}()
     
-    regexp = r"(?<suit>(t|z|m|p|a|b|c|d|s|n|nt|sz)?)(?<modosito>(E|R|H)?)(?<bemondas>(Passz|Parti|semmi|Par|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd|TDur|TBet)?)(?<kontrak>(KE|KH|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord|K|RE|re|k|K|Re)*)(?<value>([0-9]*)?)\s*"
+    #TODO: test kontrazo
+    regexp = r"(?<suit>(t|z|m|p|a|b|c|d|s|n|nt|sz)?)(?<modosito>(E|R|H)?)(?<bemondas>(Passz|Parti|semmi|Par|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd|TDur|TBet|CsU|Csu|ulti|Ulti|rep|U|u|R|r)?)(?<kontrazo>([0-9])?)(?<kontrak>(((pX|pN|p1|p2|p3|p4|p5|p6)?(KE|KH|k|K|Kontra|kontra|KRe|KSub|KMord)*)*\s*" #(?<value>([0-9]*)?)
+    # regexp_canonical = r"(?<suit>(t|z|m|p|a|b|c|d|n|x)?)(?<modosito>(E|R|H)?)(?<bemondas>(Par|Ult|Rep|4A|Dur|Bet|40s|20s|4T|TDur|TBet|CsU)?)(?<kontrak>(KE|KH)*)\s*" #(?<value>([0-9]*)?)
 
     suit = nosuit #remembered between contractElements
     modosito = sehonnan #remembered between contractElements
 
     for mtch in eachmatch(regexp, contractS)
         #DEBUG
+        # matches = collect(eachmatch(regexp, contractS))
+        # mtch=matches[1]
         # println(mtch)
         #DEBUG END
 
@@ -478,26 +777,51 @@ function parseContract(contractS::AbstractString)
         end
 
         kontrak = Kontrak() #this does not carry over
-        kontraRegexp = r"(?<kontra>(KE|KH|ERK|ERe|HRK|HRe|ESK|ESub|HSK|HSub|EMK|EMord|HMK|HMord|K|RE|re|k|K|Re)?)\s*"
-        for kontraMatch in eachmatch(kontraRegexp, String(mtch[:kontrak]))
-            for (key,val) in kontraProperties
-                if kontraMatch[:kontra] in val
-                    push!(kontrak, key)
+        TODO - one more level, double-check
+        allKontrakRegexp = r"(?<player>(pX|pN|p1|p2|p3|p4|p5|p6)?)(<allKontrak>(KE|KH|k|K|Kontra|kontra|KRe|KSub|KMord)*)\s*"
+        for allKontrakMatch in eachmatch(allKontrakRegexp, String(mtch[:kontrak]))
+            kontraRegexp = r"(?<kontra>(KE|KH|k|K|Kontra|kontra|KRe|KSub|KMord)?)\s*"
+            for kontraMatch in eachmatch(kontraRegexp, String(allKontrakMatch[:allKontrak]))
+                for (key,val) in kontraProperties
+                    if kontraMatch[:kontra] in val
+                        push!(kontrak, key)
+                    end
                 end
             end
-        end
-            
-        value = isempty(mtch["value"]) ? nothing : parse(Int, mtch["value"])
+            # push!(kontrak, key)
+        end            
+        # value = isempty(mtch["value"]) ? nothing : parse(Int, mtch["value"])
+        # ce = ContractElement(suit, modosito, bemondas, kontrak, value)
 
-        ce = ContractElement(suit, modosito, bemondas, kontrak, value)
+        ce = ContractElement(suit, modosito, bemondas, kontrak, nothing)
         push!(contractElements, ce)
     end
 
-    #total value is sum of contractElements, except for csendes bemondas
-    totalvalue = sum(ce.val for ce in contractElements)
-    #TODO: add csendes bemondas if needed
-    
-    return Contract(suit, contractElements, totalvalue)
+    #total value will be sum of contractElements, except for csendes bemondas
+    contract = Contract(player, suit, contractElements)
+
+    #add parti bemondas if needed - note: totalvalue does change!
+    if isPartiNeeded(contract)
+        extraParti = ContractElement(suit, maxModosito(contract), parti, nothing, nothing)
+        push!(contract.contracts, extraParti)
+        contract = Contract(contract.felvevo, contract.suit, contract.contracts)
+    end
+
+    #add csendes bemondas if needed - note: totalvalue does not change!
+    if suit != notrump && !isUlti(contract)
+        for ce in contract.contracts
+            if ce.bem == parti
+                csU = ContractElement(suit, ce.modosito, csendesUlti, nothing, nothing)
+                push!(contract.contracts, csU)
+                break
+            end
+        end
+    end
+
+    #This will raise an ArgumentException if not OK
+    validateContract(contract, player, previousBemondas, stage)
+
+    return contract
 end
 
 ##############

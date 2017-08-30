@@ -53,32 +53,7 @@ function sameSuitLarger(cs::CardSet, suit::Suit, card::Card)
 end
 aduk(cs::CardSet, adu::Suit) = intersect(cs, adu)
 
-#Players
-typealias Player UInt8
-    p1=Player(1) 
-    p2=Player(2) 
-    p3=Player(3) 
-    p4=Player(4) 
-    p5=Player(5) 
-    p6=Player(6) 
-    pX=Player(7)
-const playerNames = Dict([
-    (p1, "Alfa "),
-    (p2, "Béla "),
-    (p3, "Gamma"),
-    (p4, "Delta"),
-    (p5, "Epszi"),
-    (p6, "Tétova"),
-    (pX, ""), ]) #barmelyik jatekos (null)
-
-nextPlayer(pl::Player) = Player(pl % 3 + 1)
-nextPlayer(pl::Player, offset::Int) = Player(mod(pl - 1 + offset, 3) + 1)
-previousPlayer(pl::Player) = nextPlayer(pl, -1)
-# const FELVEVO = p1
-# const ELLENVONAL = [p2, p3]
-# const ELLENFEL1 = p2
-# const ELLENFEL2 = p3
-
+#PlayerState
 immutable PlayerState
     player::Player
     hand::CardSet
@@ -105,33 +80,121 @@ end
 
 #State for a whole gaming session including scores, etc.
 type sessionState
-    scores::Array{Tuple{Player, Int}}
+    scores::Vector{Tuple{Player, Int}}
 end
 
 #Game State for contract phase
-type licitState
+type LicitState
     contract::Contract  #mi a bemondas
 
-    pakli::CardSet       # leosztatlan pakli
+    pakli::Vector{CardSet}       # leosztatlan pakli (egyesevel a sorrend miatt)
 
-    playerStates::Array{PlayerState}
+    playerStates::Vector{PlayerState}
 
     currentPlayer::Player
     firstPlayer::Player
-    contractHistory::Array{Tuple{Player, Contract}}
-    
-    function licitState()
-        # Array{Tuple{Player, Contract}}()
-        # new()
-    end
-
+    contractHistory::Vector{Contract}
 end
 
+function LicitState(numberOfPlayers, firstplayer)
+    pakli = toArray(fulldeck)
+    playerStates = Vector{PlayerState}()
+    for i in 1:numberOfPlayers
+        push!(playerStates, PlayerState(Player(i), nocard))
+    end
+    # Array{Tuple{Player, Contract}}()
+    return LicitState(nocontract, pakli, playerStates, firstplayer, firstplayer, Vector{Contract}())
+end
+
+#TODO test
+function dealInitialCards!(licitState::LicitState)
+    assert(length(licitState.pakli) == 32)
+    newPlayerStates = Vector{PlayerState}()
+    for pl in licitState.playerStates
+        hand = dealCards!(5, licitState.pakli)
+        push!(newPlayerStates, newHand(pl, hand))
+    end
+    licitState.playerStates = newPlayerStates
+
+    return licitState
+end
+
+#TODO test
+function startGamePhase(licitState::LicitState)
+    if length(licitState.contractHistory) < 1
+        return nothing
+    end
+
+    numberOfPlayers = length(licitState.playerStates)
+
+    #figure out who is playing: felvevo, cotractHistory, first, second
+    playersPlaying = reverse([contract.felvevo for contract in licitState.contractHistory])
+    playersPlaying = vcat(playersPlaying, 
+        licitState.firstPlayer, 
+        nextPlayer(licitState.firstPlayer, numberOfPlayers), 
+        nextPlayerOffset(licitState.firstPlayer, 2, numberOfPlayers))
+    playersPlaying = unique(playersPlaying) #if someone has multiple contracts
+    playersPlaying = playersPlaying[1:3] #first three
+    #make sure the players are in order with the felvevo being the first
+    playersPlaying = sort(playersPlaying, by= x-> (x + numberOfPlayers - licitState.contract.felvevo) % numberOfPlayers)
+
+    #get the nonplayer cards back into pakli and reshuffle
+    for playerState in licitState.playerStates
+        if !(playerState.player in playersPlaying)
+            licitState.pakli = vcat(licitState.pakli, toArray(playerState.hand))
+        end
+    end
+
+    #2. kor osztas
+    newPlayerStates = Vector{PlayerState}()
+    for player in playersPlaying
+        #7 to felvevo 5 to others playing        
+        if player == licitState.contract.felvevo
+            newCards = dealCards!(7, licitState.pakli)
+        else
+            newCards = dealCards!(5, licitState.pakli)
+        end
+        currentCards = licitState.playerStates[player].hand #TODO, BUG - really player? same next line
+        push!(newPlayerStates, newHand(licitState.playerStates[player], currentCards + newCards))
+    end
+    
+    #create GameState
+    assert(length(newPlayerStates) == 3)
+    assert(isempty(licitState.pakli))
+    
+    contract = licitState.contract
+    playerStates = (newPlayerStates[1], newPlayerStates[2], newPlayerStates[3])
+    gs = GameState(contract, playerStates, CardSet(licitState.pakli), nocard, nocard)
+
+    return gs
+end
+
+#someone is making a contract
+function licit!(licitState::LicitState, lct::Contract)
+    if lct != nocontract && lct.totalvalue > licitState.contract.totalvalue
+        push!(licitState.contractHistory, lct)
+        licitState.contract = lct
+    end
+    #rotate to next player
+    licitState.currentPlayer = nextPlayer(licitState.currentPlayer, length(licitState.playerStates))
+    return licitState
+end
+
+function dealCards!(n::Integer, pakli::Vector{CardSet})
+    cardsDealt = Vector{CardSet}()
+    shuffle!(rng, pakli)
+    for i in 1:n
+        push!(cardsDealt, pop!(pakli))
+    end
+    return CardSet(cardsDealt)
+end
 
 #The game state
 #IMPORTANT: as it is copied with shallow copy
 #   any field (such as contract) that changes across moves must not be referenced
 #   or should be explicitly deep copied by the copy constructor
+
+#TODO: remove pakli? add felvevo (to make ordering more flexible)?
 immutable GameState
     contract::Contract  #mi a bemondas
     playerStates::Tuple{PlayerState,PlayerState,PlayerState}
@@ -182,7 +245,7 @@ end
 
 #create from serialised value
 function GameState(s::String)
-    parseState(s)
+    parseGameState(s)
 end
 
 #efficiend storage for game state:
@@ -290,7 +353,7 @@ function parseParams(s)
     return params
 end
 
-function parseState(s::String)
+function parseGameState(s::String)
     elements = split(s, ';')
     if length(elements) > 2
         #full canonical state
@@ -570,7 +633,7 @@ function score(g::GameState, ce::ContractElement)
         #TODO: WRONG! fix for p2, p3 to optimize their play
         if g.lastTrick7 == p3 return -div(ce.val, 2) end
 
-        if g.lastTrickFogottUlti #bukott #TODO - new state for that
+        if g.lastTrickFogottUlti == g.playerStates[1].player #bukott #TODO - new state for that
             return -2 * ce.val #hatulrol duplan bukik
         end
         return 0    #meg nem tudjuk vagy nincs
@@ -607,7 +670,7 @@ function flushScreen()
     println("\n"^100)
 end
 
-function print(io::IO, pstate::Tuple{PlayerState, PlayerState, PlayerState}, shortFormat::Bool=true)
+function printPlayerState(io::IO, pstate, shortFormat::Bool=true, licitPhase::Bool=false)
     if shortFormat
         for pl in pstate
             
@@ -619,34 +682,47 @@ function print(io::IO, pstate::Tuple{PlayerState, PlayerState, PlayerState}, sho
             print(io, pl.negyven); print(io, "|")
             print(io, pl.husz); print(io, "|")
         end
-        # for pl in pstate
-        #     print(io, pl.discard, true); print(io, "|")
-        # end
-        # for pl in pstate
-        #     print(io, pl.negyven); print(io, "|")
-        # end
-        # for pl in pstate
-        #     print(io, pl.husz); print(io, "|")
-        # end
     else
         for pl in pstate
             print(io, playerNames[pl.player]); print(io, ": ")
             print(io, pl.hand, false)
             println(io); println(io)
         end
-        println(io)
-        for pl in pstate
-            print(io, playerNames[pl.player]); print(io, " ütései: ")
-            print(io, pl.discard, false)
+        if !licitPhase
             println(io)
+            for pl in pstate
+                print(io, playerNames[pl.player]); print(io, " ütései: ")
+                print(io, pl.discard, false)
+                println(io)
+            end
+            for pl in pstate
+                if pl.negyven + pl.husz > 0
+                    print(io, playerNames[pl.player])
+                    if pl.negyven > 0
+                        print(io, " negyven:"); print(io, pl.negyven)
+                    end
+                    if pl.husz > 0
+                        print(io, " husz:"); print(io, pl.husz)
+                    end
+                    println(io)
+                end
+            end
         end
     end
+end
+
+function print(io::IO, pstate::Tuple{PlayerState, PlayerState, PlayerState}, shortFormat::Bool=true)
+    printPlayerState(io, pstate, shortFormat, false)
+end
+function print(io::IO, pstate::Vector{PlayerState}, shortFormat::Bool=true)
+    printPlayerState(io, pstate, shortFormat, true)
 end
 
 display(pstate::Tuple{PlayerState, PlayerState, PlayerState}) = print(STDOUT, pstate, false)
 
 function print(io::IO, g::GameState, shortFormat::Bool=true)
     if shortFormat
+        print(io, "G*")
         print(io, g.contract, true); print(io, ";")
         print(io, g.playerStates, true); print(io, ";")
         print(io, g.pakli, true); print(io, "|")
@@ -655,13 +731,13 @@ function print(io::IO, g::GameState, shortFormat::Bool=true)
         additionalParams = [g.currentPlayer, g.currentSuit, g.whoseTrick, g.lastTrick, g.lastTrick7, g.butLastTrick8, g.adu7kiment, g.adu8kiment, g.lastTrickFogottUlti, g.tricks, g.felvevoTricks, g.ellenvonalTricks, g.felvevoTizesek, g.ellenvonalTizesek, g.felvevoOsszes, g.ellenvonalOsszes]
         for param in additionalParams
             # print(Int(param))
-            print(param)
-            print("|")
+            print(io, param)
+            print(io, "|")
         end
 
         #TODO: additional parameters separated by "|"
     else
-        println();print(io, g.contract, false); println(io)
+        println(io); print("Bemondás: "); print(io, g.contract, false); println(io)
         print(io, "\nAsztal: "); print(io, g.asztal, false); println(io); println(io); println(io)
         print(io, g.playerStates, false)
         print("Talon: "); print(io, g.talon, false); println(io)
@@ -679,6 +755,34 @@ end
 
 display(g::GameState) = print(STDOUT, g, false)
 
+#TODO
+function print(io::IO, ls::LicitState, shortFormat::Bool=true)
+    if shortFormat
+        print(io, "L*")
+        print(io, ls.contract, true); print(io, ";")
+        print(io, ls.playerStates, true); print(io, ";")
+        print(io, CardSet(ls.pakli), true); print(io, "|")
+        print(io, ls.firstPlayer); print(io, "|")
+        print(io, ls.currentPlayer); print(io, "|")
+        for bem in ls.contractHistory
+            print(io, bem, true); print(io, "|")
+        end
+    else
+        print(io, ls.playerStates, false)
+        print(io, "$(playerNames[ls.currentPlayer]) jön.");  println(io)
+        println(); print("Bemondás: "); print(io, ls.contract, false)
+        print(io, "\nKezdő játékos: $(playerNames[ls.firstPlayer])")
+        print(io, "\nEddigi bemondások:")
+        for bem in ls.contractHistory
+            println();print(io, bem, false);
+        end
+        println(io)
+        print(io, "\nID:\""); print(io, ls, true); print(io, "\"")
+        println(io)
+    end    
+end
+
+display(ls::LicitState) = print(STDOUT, ls, false)
 
 #The valid card to play in this trick (if there is already a card on the table)
 function validMoves(g)
