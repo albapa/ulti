@@ -1,2 +1,3 @@
 # ulti
-5 lapos ulti
+5 lapos ulti - endzsinn
+
