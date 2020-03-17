@@ -33,12 +33,12 @@ import Combinatorics: Combinations
 
 #TODO: Performance: everything Int and native IntSet32
 
-# typealias CardSet IntSet32
+# const CardSet = IntSet32
 # CardSet(cards::Array{Card, 1}) = IntSet32([Int(card) for card in cards])
-# typealias CardSet DataStructures.IntSet
+# const CardSet = DataStructures.IntSet
 # CardSet(cards::Array{Card, 1}) = DataStructures.IntSet([Int(card) for card in cards])
 
-typealias CardSet CardSet32
+const CardSet = CardSet32
 
 hanyAsz(cs::CardSet) = length(intersect(cs, A))
 hanyAsz(ca::Vector{Card}) = hanyAsz(CardSet(ca))
@@ -54,7 +54,7 @@ end
 aduk(cs::CardSet, adu::Suit) = intersect(cs, adu)
 
 #PlayerState
-immutable PlayerState
+struct PlayerState
     player::Player
     hand::CardSet
     discard::CardSet
@@ -79,12 +79,12 @@ function newNegyvenHusz(ps::PlayerState, negyven::UInt8, husz::UInt8)
 end
 
 #State for a whole gaming session including scores, etc.
-type sessionState
+mutable struct sessionState
     scores::Vector{Tuple{Player, Int}}
 end
 
 #Game State for contract phase
-type LicitState
+mutable struct LicitState
     contract::Contract  #mi a bemondas
 
     pakli::Vector{CardSet}       # leosztatlan pakli (egyesevel a sorrend miatt)
@@ -108,7 +108,7 @@ end
 
 #TODO test
 function dealInitialCards!(licitState::LicitState)
-    assert(length(licitState.pakli) == 32)
+    @assert (length(licitState.pakli) == 32)
     newPlayerStates = Vector{PlayerState}()
     for pl in licitState.playerStates
         hand = dealCards!(5, licitState.pakli)
@@ -159,8 +159,8 @@ function startGamePhase(licitState::LicitState)
     end
     
     #create GameState
-    assert(length(newPlayerStates) == 3)
-    assert(isempty(licitState.pakli))
+    @assert (length(newPlayerStates) == 3)
+    @assert (isempty(licitState.pakli))
     
     contract = licitState.contract
     playerStates = (newPlayerStates[1], newPlayerStates[2], newPlayerStates[3])
@@ -195,7 +195,7 @@ end
 #   or should be explicitly deep copied by the copy constructor
 
 #TODO: remove pakli? add felvevo (to make ordering more flexible)?
-immutable GameState
+struct GameState
     contract::Contract  #mi a bemondas
     playerStates::Tuple{PlayerState,PlayerState,PlayerState}
     pakli::CardSet       # leosztatlan pakli
@@ -416,7 +416,7 @@ function matchCards(cardSlots::Vector{CardSet}, cards::CardSet)
         #if all remaining slots are the same, distribute -> done
         if length(slotsByWeight) == 1
             for (n, indices) in slotsByWeight
-                assert(length(indices) > 0)
+                @assert (length(indices) > 0)
                 firstElem = cardSlots[first(indices)]
                 if all(x -> cardSlots[x] == firstElem, indices) #all equal
                     if(length(firstElem * cards) < length(indices))
@@ -428,7 +428,7 @@ function matchCards(cardSlots::Vector{CardSet}, cards::CardSet)
                     cards = commitMany!(cardSlots, isDone, indices, cardsToCommit, cards)
                 end
             end
-            assert(all(isDone))
+            @assert (all(isDone))
         end
         #for (cs, dn) in zip(cardSlots, isDone); (print(dn), print(cs), println()) end; (print(cards), println()); for (k,v) in slotsByWeight print(" $(k) $(v)") end #DEBUG
 
@@ -444,7 +444,7 @@ function matchCards(cardSlots::Vector{CardSet}, cards::CardSet)
             (firstPreemptiveSet, cardsInSet) = findPreemptiveSet(n, indices, cardSlots) #if we find one we commit immediately
 
             if !isempty(firstPreemptiveSet)
-                assert(length(firstPreemptiveSet) == n && length(cardsInSet) == n) #exactly n cards needed
+                @assert (length(firstPreemptiveSet) == n && length(cardsInSet) == n) #exactly n cards needed
                 foundPreemptiveSet = true
                 # 
                 #TODO: we just randomly do that 
@@ -465,6 +465,18 @@ function matchCards(cardSlots::Vector{CardSet}, cards::CardSet)
 
     return (cardSlots, cards)
 end
+
+
+# deal the rest of the cards based on current cards already dealt
+function sampleCards(cards::CardSet)
+    cards = CardSet([pF,p9,p8, mT,mF])
+    restOfCards = fulldeck - cards 
+    deck_to_deal = collect([x for x in restOfCards])
+    deck_to_deal = shuffle(deck_to_deal)
+    my_cards = cards + CardSet32(deck_to_deal[1:7])
+end
+
+
 
 #find single cards and commit them
 @inline function commitAllUnique(cardSlots, isDone, cards)
@@ -511,7 +523,7 @@ end
 
 function commitMany!(cardSlots, isDone, indices, cardsToCommit, cards)
     for (i, card) in zip(indices, cardsToCommit)
-        assert(card in cardSlots[i])
+        @assert (card in cardSlots[i])
         cardSlots[i] *= card
 
         cards = commit!(isDone, i, card, cards)
@@ -539,7 +551,7 @@ function score(g::GameState, ce::ContractElement)
             return -2 * ce.val #szazzal bukott
         end
         if g.tricks == 10 #vege a jateknak
-            assert(g.felvevoTizesek + g.ellenvonalTizesek == 90)
+            @assert (g.felvevoTizesek + g.ellenvonalTizesek == 90)
             if g.felvevoOsszes > g.ellenvonalOsszes
                 return ce.val
             else
@@ -612,7 +624,7 @@ function score(g::GameState, ce::ContractElement)
             return -ce.val #ellenvonal utes -> bukott
         end
         if g.tricks == 10 #megvan
-            assert(length(g.playerStates[1].discard) == 30) #TODO: FELVEVO maybe or count both tricks
+            @assert (length(g.playerStates[1].discard) == 30) #TODO: FELVEVO maybe or count both tricks
             return ce.val #megvan
         end
         return 0    #meg nem tudjuk
@@ -622,7 +634,7 @@ function score(g::GameState, ce::ContractElement)
             return -ce.val #felvevo utes -> bukott
         end
         if g.tricks == 10 #megvan
-            assert(length(g.playerStates[2].discard) + length(g.playerStates[3].discard) == 30)
+            @assert (length(g.playerStates[2].discard) + length(g.playerStates[3].discard) == 30)
             return ce.val #megvan
         end
         return 0    #meg nem tudjuk
@@ -718,7 +730,7 @@ function print(io::IO, pstate::Vector{PlayerState}, shortFormat::Bool=true)
     printPlayerState(io, pstate, shortFormat, true)
 end
 
-display(pstate::Tuple{PlayerState, PlayerState, PlayerState}) = print(STDOUT, pstate, false)
+display(pstate::Tuple{PlayerState, PlayerState, PlayerState}) = print(stdout, pstate, false)
 
 function print(io::IO, g::GameState, shortFormat::Bool=true)
     if shortFormat
@@ -753,7 +765,7 @@ function print(io::IO, g::GameState, shortFormat::Bool=true)
     end    
 end
 
-display(g::GameState) = print(STDOUT, g, false)
+display(g::GameState) = print(stdout, g, false)
 
 #TODO
 function print(io::IO, ls::LicitState, shortFormat::Bool=true)
@@ -782,7 +794,7 @@ function print(io::IO, ls::LicitState, shortFormat::Bool=true)
     end    
 end
 
-display(ls::LicitState) = print(STDOUT, ls, false)
+display(ls::LicitState) = print(stdout, ls, false)
 
 #The valid card to play in this trick (if there is already a card on the table)
 function validMoves(g)
@@ -793,7 +805,7 @@ function validMoves(g)
 
     #sorrend: felulutni szinbol, szin, felulutni adu, adu, egyeb
     if length(g.asztal) > 0 #mar van egy szin
-        assert(g.currentSuit != notrump)
+        @assert (g.currentSuit != notrump)
         enSuit = sameSuit(valid, g.currentSuit)
         if length(enSuit) > 0
             if g.currentSuit != g.contract.suit && !isempty(aduk(g.asztal, g.contract.suit)) #ha mar aduval utottek nem kell felul utni
@@ -871,7 +883,7 @@ function newState(gOld::GameState, negyven::UInt8, husz::UInt8)
 end
 
 function newState(g::GameState, card::Card)
-    assert(length(card) == 1)
+    @assert (length(card) == 1)
 
     #copy them one by one, change and reconstruct - poor man's update for immutables
     contract=g.contract; pakli=g.pakli; asztal=g.asztal; talon=g.talon;
@@ -886,77 +898,87 @@ function newState(g::GameState, card::Card)
     playerStates = [g.playerStates[1], g.playerStates[2], g.playerStates[3]]
     # g = GameState(gOld) #TODO make sure consistency - deep copy for immutability, or custom copy constructor for speed?
 
-    asztal = add(asztal, card)
-    hand = remove(playerStates[currentPlayer].hand, card)
-    playerStates[currentPlayer] = newHand(playerStates[currentPlayer], hand)
-
-    if card == Card(contract.suit, _7) adu7kiment = currentPlayer end
-    if card == Card(contract.suit, _8) adu8kiment = currentPlayer end
-
-    if length(asztal) == 1 #uj szin
-        currentSuit = SuitFace(card)[1]
-        whoseTrick = currentPlayer
-    else
-        if trumpsAll(card, asztal, contract.suit)
-            whoseTrick = currentPlayer
+    if length(talon) < 2
+        talon = add(talon, card)
+        hand = remove(playerStates[currentPlayer].hand, card)
+        playerStates[currentPlayer] = newHand(playerStates[currentPlayer], hand)
+        if hanyAT(card) > 0 # talon tizese az ellenfele
+            ellenvonalTizesek += UInt8(10)
+            ellenvonalOsszes+= UInt8(10)
         end
-    end
+    else 
+        asztal = add(asztal, card)
+        hand = remove(playerStates[currentPlayer].hand, card)
+        playerStates[currentPlayer] = newHand(playerStates[currentPlayer], hand)
 
-    if length(asztal) == 3 #kor vege
-        tizasz = hanyAT(asztal)
+        if card == Card(contract.suit, _7) adu7kiment = currentPlayer end
+        if card == Card(contract.suit, _8) adu8kiment = currentPlayer end
 
-        #update variables
-        tricks += UInt8(1)
-        if tricks == UInt8(10)
-            lastTrick = whoseTrick
-
-            if lastTrick == p1 #utolso utes = 10
-                felvevoTizesek += UInt8(10)
-                felvevoOsszes += UInt8(10)
-            else
-                ellenvonalTizesek += UInt8(10)
-                ellenvonalOsszes+= UInt8(10)
+        if length(asztal) == 1 #uj szin
+            currentSuit = SuitFace(card)[1]
+            whoseTrick = currentPlayer
+        else
+            if trumpsAll(card, asztal, contract.suit)
+                whoseTrick = currentPlayer
             end
+        end
 
+        if length(asztal) == 3 #kor vege
+            tizasz = hanyAT(asztal)
 
-            if contract.suit <= p
-                trump7 = Card(contract.suit, _7)
-                if trump7 == largestCard(asztal, contract.suit)
-                    lastTrick7 = whoseTrick
+            #update variables
+            tricks += UInt8(1)
+            if tricks == UInt8(10)
+                lastTrick = whoseTrick
+
+                if lastTrick == p1 #utolso utes = 10
+                    felvevoTizesek += UInt8(10)
+                    felvevoOsszes += UInt8(10)
                 else
-                    lastTrickFogottUlti = adu7kiment #(csendes) ulti bukott
+                    ellenvonalTizesek += UInt8(10)
+                    ellenvonalOsszes+= UInt8(10)
+                end
+
+
+                if contract.suit <= p
+                    trump7 = Card(contract.suit, _7)
+                    if trump7 == largestCard(asztal, contract.suit)
+                        lastTrick7 = whoseTrick
+                    else
+                        lastTrickFogottUlti = adu7kiment #(csendes) ulti bukott
+                    end
                 end
             end
-        end
 
-        #repulo
-        if tricks == 9 && contract.suit <= p
-            trump8 = Card(contract.suit, _8)
-            if trump8 == largestCard(asztal, contract.suit)
-                butLastTrick8 = whoseTrick
+            #repulo
+            if tricks == 9 && contract.suit <= p
+                trump8 = Card(contract.suit, _8)
+                if trump8 == largestCard(asztal, contract.suit)
+                    butLastTrick8 = whoseTrick
+                end
             end
+
+            if whoseTrick == p1
+                felvevoTricks += UInt8(1)
+                felvevoTizesek += UInt8(tizasz * 10)
+                felvevoOsszes+= UInt8(tizasz * 10)
+            else
+                ellenvonalTricks += UInt8(1)
+                ellenvonalTizesek += UInt8(tizasz * 10)
+                ellenvonalOsszes+= UInt8(tizasz * 10)
+            end
+
+            discard = add(playerStates[whoseTrick].discard, asztal)
+            playerStates[whoseTrick] = newDiscard(playerStates[whoseTrick], discard)
+            asztal = CardSet()
+
+            currentSuit = notrump
+            currentPlayer = whoseTrick
+            whoseTrick = pX
+
+        else #no trick yet
+            currentPlayer = nextPlayer(g.currentPlayer)
         end
-
-        if whoseTrick == p1
-            felvevoTricks += UInt8(1)
-            felvevoTizesek += UInt8(tizasz * 10)
-            felvevoOsszes+= UInt8(tizasz * 10)
-        else
-            ellenvonalTricks += UInt8(1)
-            ellenvonalTizesek += UInt8(tizasz * 10)
-            ellenvonalOsszes+= UInt8(tizasz * 10)
-        end
-
-        discard = add(playerStates[whoseTrick].discard, asztal)
-        playerStates[whoseTrick] = newDiscard(playerStates[whoseTrick], discard)
-        asztal = CardSet()
-
-        currentSuit = notrump
-        currentPlayer = whoseTrick
-        whoseTrick = pX
-
-    else #no trick yet
-        currentPlayer = nextPlayer(g.currentPlayer)
     end
 
     return GameState(contract, (playerStates[1],playerStates[2],playerStates[3]), pakli, asztal, talon, currentPlayer, currentSuit, whoseTrick, lastTrick, lastTrick7, butLastTrick8, adu7kiment, adu8kiment, lastTrickFogottUlti, tricks, felvevoTricks, ellenvonalTricks, felvevoTizesek, ellenvonalTizesek, felvevoOsszes, ellenvonalOsszes)

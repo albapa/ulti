@@ -5,7 +5,7 @@ include("IntSet32.jl")
 using Memoize
 import Base: show, <, copy, print, isequal, ==, length
 DEBUG = true
-UNSAFE = false #assert, type safety, etc. off
+UNSAFE = false #@assert , type safety, etc. off
 
 #The 32 Cards
 #Tok 7es-tol (t7) piros Aszig (pA).
@@ -89,11 +89,11 @@ function print(io::IO, cs::Vector{Vector{CardSet32}}, shortForm=true)
     end
 end
 
-display(cs::CardSet32) = print(STDOUT, cs, false)
-display(cs::Vector{CardSet32}) = print(STDOUT, cs, false)
-display(cs::Vector{Vector{CardSet32}}) = print(STDOUT, cs, false)
+display(cs::CardSet32) = print(stdout, cs, false)
+display(cs::Vector{CardSet32}) = print(stdout, cs, false)
+display(cs::Vector{Vector{CardSet32}}) = print(stdout, cs, false)
 
-typealias Suit CardSet32
+const Suit = CardSet32
     const t = union(t7,t8,t9,tU,tF,tK,tT,tA) #Tök
     const z = union(z7,z8,z9,zU,zF,zK,zT,zA) #Zöld
     const m = union(m7,m8,m9,mU,mF,mK,mT,mA) #Makk
@@ -123,7 +123,7 @@ const suitStrings = Dict([
     ('d', d),
     ]) 
 
-typealias Face CardSet32
+const Face = CardSet32
     const _7 = union(t7, z7, m7, p7) #hetes
     const _8 = union(t8, z8, m8, p8) #nyolcas
     const _9 = union(t9, z9, m9, p9) #kilences
@@ -269,7 +269,7 @@ end
 
 #Bemondasok
 # abban a sorrendben, ahogy egymashoz fuzik oket (ulti-repulo-40_100-negyAsz-durchmars)
-typealias AlapBemondas UInt8
+const AlapBemondas = UInt8
     semmi = UInt8(0) #amig nincs semmi
     ulti = UInt8(1)
     repulo = UInt8(2)
@@ -306,7 +306,7 @@ const alapBemondasProperties = Dict([
 ])
 
 #Modosito szorzok elolrol bemondott vagy ramondott bemondasokra
-typealias Modosito UInt8
+const Modosito = UInt8
     elolrol =  UInt8(4)
     ramondva = UInt8(2)
     hatulrol = UInt8(1)
@@ -320,7 +320,7 @@ const modositoProperties = Dict([
 ])
 
 #Players
-typealias Player UInt8
+const Player = UInt8
     p1=Player(1) 
     p2=Player(2) 
     p3=Player(3) 
@@ -350,7 +350,7 @@ previousPlayer(pl::Player, numberOfPlayers=3) = nextPlayer(pl, -1)
 
 
 #TODO - test
-typealias Kontra UInt8
+const Kontra = UInt8
 KE = UInt8(4)
 KH = UInt8(2)
 
@@ -359,12 +359,12 @@ const kontraProperties = Dict([
   (KH, ["Hátulról kontra", "KH"]),
 ])
 
-immutable KontraElement
+struct KontraElement
     kontrazo::Player #pX ha kozos kontra, kulon re/mordkontranal az eredeti kontrazo van itt
     kon::Vector{Kontra} #pl. Kontrak([elolrol,elolrol,hatulrol]) az elolrol kontra, elolrol rekontra es hatulrol szub - 32x
 end
 
-immutable Kontrak
+struct Kontrak
     kon::Vector{KontraElement} #pl. Kontrak([elolrol,elolrol,hatulrol]) az elolrol kontra, elolrol rekontra es hatulrol szub - 32x
 end
 
@@ -393,13 +393,13 @@ function multiplier(kontrak::Kontrak)
     end
 end
 
-# typealias Kontrak Array{Kontra, 1} #pl. Kontrak([KE,KE,KH]) az elolrol kontra, elolrol rekontra es hatulrol szub - 32x
+# const Kontrak = Array{Kontra, 1} #pl. Kontrak([KE,KE,KH]) az elolrol kontra, elolrol rekontra es hatulrol szub - 32x
 
 #TODO
 function show(Kontrak) end #kiirja a kontra, re, szub, mord, stb. -t
 
 #Egy alapbemondas modositokkal
-immutable ContractElement
+struct ContractElement
     modosito::Modosito
     bem::AlapBemondas
     kon::Kontrak
@@ -410,7 +410,7 @@ function ContractElement(suit, modosito, bem, kon, val)
     modosito = modosito == nothing ? sehonnan : modosito
     bem = bem == nothing ? semmi : bem
     kon = kon == nothing ? Kontrak() : kon
-    val = val == nothing ? contractValues[(suit, bem, modosito)] * multiplier(kon): val
+    val = val == nothing ? contractValues[(suit, bem, modosito)] * multiplier(kon) : val
 
     ContractElement(modosito, bem, kon, val)
 end
@@ -429,27 +429,29 @@ function print(io::IO, ce::ContractElement, shortFormat::Bool=true)
         shortFormat ? modositoProperties[ce.modosito][end] : modositoProperties[ce.modosito][1] * " ",
         shortFormat ? alapBemondasProperties[ce.bem][2][end] : alapBemondasProperties[ce.bem][2][1] * " ")
 
-    if ce.kon.kontrazo != pN
+    for kontrael in ce.kon.kon
+        if kontrael.kontrazo != pN
 
-        if !shortFormat
-            print(io, playerNames[ce.kon.kontrazo]); print(io, ":")
-        else
-            print(io, ce.kon.kontrazo)
-        end
-
-        for k in ce.kon.honnan
-            print(io, kontraProperties[k][2])
             if !shortFormat
-                print(io, " ")
+                print(io, playerNames[kontrael.kontrazo]); print(io, ":")
+            else
+                print(io, kontrael.kontrazo)
+            end
+
+            for k in kontrael.honnan
+                print(io, kontraProperties[k][2])
+                if !shortFormat
+                    print(io, " ")
+                end
             end
         end
     end
 end
 
-display(ce::ContractElement) = print(STDOUT, ce, false)
+display(ce::ContractElement) = print(stdout, ce, false)
 
 #A bemondas
-immutable Contract
+struct Contract
     felvevo::Player
     suit::Suit
     contracts::Vector{ContractElement}
@@ -581,7 +583,7 @@ function print(io::IO, contract::Contract, shortFormat::Bool=true)
 
 end
 
-display(contract::Contract) = print(STDOUT, contract, false)
+display(contract::Contract) = print(stdout, contract, false)
 
 #TODO: write test cases for this
 #This will raise an ArgumentException if not OK
@@ -649,7 +651,7 @@ function validateContract(contract::Contract, player::Player=pX, previousBemonda
     #minden elolrol bemondas ott legyen, kiveve parti vs. 40sz 20sz, dur
     if stage == ramondva
         ramondottak = [ce.bem for ce in contract.contracts if ce.modosito == ramondva]
-        assert(player == previousBemondas.felvevo)
+        @assert (player == previousBemondas.felvevo)
         for ce in contract.contracts
             if ce.modosito == elolrol && !(ce in previousBemondas.contracts)
                 #parti elhagyhato ha van 40s, 20s vagy duri
@@ -731,7 +733,7 @@ function parseContract(contractS::AbstractString, player::Player=pX, previousBem
     end
 
     playerSep = split(contractS, ":")
-    assert(length(playerSep) <= 2)
+    @assert (length(playerSep) <= 2)
 
     if length(playerSep) == 2
         player = parse(Player, playerSep[1])
@@ -740,8 +742,8 @@ function parseContract(contractS::AbstractString, player::Player=pX, previousBem
 
     contractElements = Vector{ContractElement}()
     
-    #TODO: test kontrazo
-    regexp = r"(?<suit>(t|z|m|p|a|b|c|d|s|n|nt|sz)?)(?<modosito>(E|R|H)?)(?<bemondas>(Passz|Parti|semmi|Par|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd|TDur|TBet|CsU|Csu|ulti|Ulti|rep|U|u|R|r)?)(?<kontrazo>([0-9])?)(?<kontrak>(((pX|pN|p1|p2|p3|p4|p5|p6)?(KE|KH|k|K|Kontra|kontra|KRe|KSub|KMord)*)*\s*" #(?<value>([0-9]*)?)
+    #TODO: test kontrazo, kontrak
+    regexp = r"(?<suit>(t|z|m|p|a|b|c|d|s|n|nt|sz)?)(?<modosito>(E|R|H)?)(?<bemondas>(Passz|Parti|semmi|Par|Ult|Rep|4A|Dur|Bet|40s|20s|4T|Tbet|Tdur|Terb|Terd|TDur|TBet|CsU|Csu|ulti|Ulti|rep|U|u|R|r)?)(?<kontrazo>([0-9])?)(?<kontrak>((pX|pN|p1|p2|p3|p4|p5|p6)?(KE|KH|k|K|Kontra|kontra|KRe|KSub|KMord))*)*\s*" #(?<value>([0-9]*)?)
     # regexp_canonical = r"(?<suit>(t|z|m|p|a|b|c|d|n|x)?)(?<modosito>(E|R|H)?)(?<bemondas>(Par|Ult|Rep|4A|Dur|Bet|40s|20s|4T|TDur|TBet|CsU)?)(?<kontrak>(KE|KH)*)\s*" #(?<value>([0-9]*)?)
 
     suit = nosuit #remembered between contractElements
@@ -777,7 +779,7 @@ function parseContract(contractS::AbstractString, player::Player=pX, previousBem
         end
 
         kontrak = Kontrak() #this does not carry over
-        TODO - one more level, double-check
+        # TODO - one more level, double-check
         allKontrakRegexp = r"(?<player>(pX|pN|p1|p2|p3|p4|p5|p6)?)(<allKontrak>(KE|KH|k|K|Kontra|kontra|KRe|KSub|KMord)*)\s*"
         for allKontrakMatch in eachmatch(allKontrakRegexp, String(mtch[:kontrak]))
             kontraRegexp = r"(?<kontra>(KE|KH|k|K|Kontra|kontra|KRe|KSub|KMord)?)\s*"

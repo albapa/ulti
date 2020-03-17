@@ -72,7 +72,7 @@ function mainLoop()
 
         #Licit phase
         while true
-            print(STDOUT, licitState, false)
+            print(stdout, licitState, false)
             lct = getLicit(licitState.currentPlayer, licitState.contract)
             licitState = licit!(licitState, lct)
             #check if licit is over
@@ -86,8 +86,10 @@ function mainLoop()
                     licitState.contractHistory[end].felvevo == licitState.currentPlayer)    
                 #create gameState
                 gameState = startGamePhase(licitState)
-                print(STDOUT, gameState, false)
+                print(stdout, gameState, false)
+
                 #Lejatszas
+                result = lejatszas(GameState)
                 # while true
 
                 # end
@@ -102,6 +104,24 @@ function mainLoop()
     end
 end
 
+
+function lejatszas(g::GameState)
+  while ~isempty(ps(g, g.currentPlayer).hand)
+    print(stdout, g, false)
+    # value, bestMoves = alfabeta(g, -1, typemin(Int), typemax(Int))
+    value, bestMoves = alfabeta(g, -1, -g.contract.totalvalue, g.contract.totalvalue)
+    chosenMove = dealCards!(1, [x for x in bestMoves])
+    println(stdout, "\nChosen move: $chosenMove with value $value. Best moves: $bestMoves. Enter card to play or nothing to accept")
+    _l, manualCard = readline() |> chomp |> parseCards
+    if length(manualCard) > 0
+      chosenMove = manualCard
+    end
+    g = newState(g, chosenMove)
+  end
+  gameScore = score(g)
+  print(stdout, "$g\nGame over. Score: $gameScore", false)
+end
+
 ##############
 #Tests
 ##############
@@ -109,32 +129,34 @@ end
 function testGame()
     g = GameState(
         #TODO BUG kontra parti nem jelenik meg
-      Contract(0x01, p, [ContractElement(elolrol, ulti, Kontrak(), 96), ContractElement(elolrol, parti, Kontrak(pX, [KH]), 48)], 144), #elolrol piros ulti (+ passz) 
+      Contract(0x01, p, [ContractElement(elolrol, ulti, Kontrak(), 96), ContractElement(elolrol, parti, Kontrak([KontraElement(pX, [KH])]), 48)], 144), #elolrol piros ulti (+ passz) 
       (
         PlayerState(
           Player(1),
-          CardSet([pA,pT,pK,pU,p7, mK,mU,m8, tT, z9]), #felvevo lapja
+          CardSet([p9,pT,pK,pU,p7, mA,mK,m8, tA, tU, t9, z7]), #felvevo lapja talonnal
+          # CardSet([pA,pT,pK,pU,p7, mA,mK,m8, tA, z7]), #felvevo lapja
           CardSet(), UInt8(0),UInt8(0), #nincs meg utese, 20 vagy 40
         ),
         PlayerState(
           Player(2),
-          CardSet([pF,p9,p8, mA,mF,m7, zK, zF, z7, tF]), #2. jatekos lapja
+          CardSet([pA,pF,p8, mT,mF,m7, zK, zF, zA, tF]), #2. jatekos lapja
           CardSet(), UInt8(0),UInt8(0), #nincs meg utese, 20 vagy 40
         ),
         PlayerState(
           Player(3),
-          CardSet([mT,m9, zA,zT,zU,z8, tA,tK,t8,t7 ]), #3. jatekos lapja
+          CardSet([mU,m9, z9,zT,zU,z8, tT,tK,t8,t7 ]), #3. jatekos lapja
           CardSet(), UInt8(0),UInt8(0), #nincs meg utese, 20 vagy 40
         )
       ),
       CardSet(), #pakli ures (kiosztva)
       CardSet(), #asztal ures
-      CardSet([t9, tU]), #talon
+      CardSet(), #talon
+      # CardSet([t9, tU]), #talon
       p1 #current player
     )
 
     # g=newState(g, rand(rng, validMoves(g)))
     # alfabeta(g, -1, typemin(Int), typemax(Int))
-    # alfabeta(g, -1, -g.contract.totalvalue, g.contract.totalvalue)
+    alfabeta(g, -1, -g.contract.totalvalue, g.contract.totalvalue)
     # end #module
 end

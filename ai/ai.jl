@@ -30,7 +30,7 @@ function removeNeighbours(g::GameState, vm::CardSet32)
     (result, streak) = (CardSet32(), CardSet32())
 
     remaining = union(ps(g, p1).hand, ps(g, p2).hand, ps(g, p3).hand)
-    assert(vm in remaining)
+    @assert (vm in remaining)
     # remaining = setdiff(s1, s2)(remaining, vm)
     
     for card in remaining
@@ -62,7 +62,7 @@ end
 #     if length(vm) <= 1 return vm end
     
 #     remaining = union(ps(g, p1).hand, ps(g, p2).hand, ps(g, p3).hand)
-#     assert(length(remaining) > length(vm))
+#     @assert (length(remaining) > length(vm))
     
 #     streak = CardSet32()
 #     result = CardSet32()
@@ -124,8 +124,9 @@ function sortMoves(g::GameState, vm::CardSet32)
     suitsInvalid = filter(x->!isempty(valid * x), [t,z,m,p]) #TODO: randomize maybe later?
     suitsInLengthOrder = sort(suitsInvalid, lt=shorterThan)
 
-    function largestCardsInsuitLengthOrder(result, valid, what=:largest)
-        for suit in suitsInLengthOrder
+    function largestCardsInsuitLengthOrder(result, valid, what=:largest, rev::Bool=false)
+        suitList = rev ? suitsInLengthOrder : reverse(suitsInLengthOrder)
+        for suit in suitList
             if isempty(valid * suit)
                 continue
             end
@@ -148,11 +149,16 @@ function sortMoves(g::GameState, vm::CardSet32)
     end
 
     smallestCardsInsuitLengthOrder(result, valid) = largestCardsInsuitLengthOrder(result, valid, :smallest)
-
+    smallestCardsInReverseSuitLengthOrder(result, valid) = largestCardsInsuitLengthOrder(result, valid, :smallest, true)
     allCardsInsuitLengthOrder(result, valid) = largestCardsInsuitLengthOrder(result, valid, :all)
+    allCardsInReverseSuitLengthOrder(result, valid) = largestCardsInsuitLengthOrder(result, valid, :all)
+    largestCardsInReverseSuitLengthOrder(result, valid) = largestCardsInsuitLengthOrder(result, valid, :largest, true)
 
     if g.contract.suit <= p #adu jatek
-        if isempty(g.asztal) #elso helyrol
+        if length(g.talon) < 2 # talonozas
+            (result, valid) = smallestCardsInReverseSuitLengthOrder(result, valid)
+            (result, valid) = allCardsInReverseSuitLengthOrder(result, valid)
+        elseif isempty(g.asztal) #elso helyrol
             #largest cards in suit length order
             (result, valid) = largestCardsInsuitLengthOrder(result, valid)
             #smallest cards in suit length order
@@ -174,7 +180,7 @@ function sortMoves(g::GameState, vm::CardSet32)
     if !isempty(valid) push!(result, toArray(valid)) end
 
     # show(result); print(" | "); show(valid); println() #DEBUG
-    assert(length(vm) == length(result)) #make sure we have all cards sorted
+    @assert (length(vm) == length(result)) #make sure we have all cards sorted
     return result
 end
 
@@ -201,41 +207,57 @@ end
     # info(depth, " ", α, " ", β)
     #END DEBUG
     if  depth == 0 || isempty(ps(g, g.currentPlayer).hand)
-        return score(g)
+        return score(g), CardSet32()
     end
+    bestMoves = CardSet32()
     if  g.currentPlayer == p1
         for card in pickMoves(g, validMoves(g), depth, α, β)
             #create new state
             gNew = newState(g, card)
 
-            α = max(α, alfabeta(gNew, depth-1, α, β))
-
-            # #DEBUG
-            if depth > -2
-                moves[card] = α
+            newAlpha, bm = alfabeta(gNew, depth-1, α, β)
+            if newAlpha > α
+                bestMoves = card
+                α = newAlpha
+            elseif newAlpha == α
+                bestMoves += card
             end
-            # #END DEBUG
+
+            # # #DEBUG
+            # if depth > -2
+            #     moves[card] = α
+            # end
+            # # #END DEBUG
 
             if β ≤ α
                 break                            # (* Beta cut-off *)
             end
         end
-        return α
+        return α, bestMoves
     else
         for card in pickMoves(g, validMoves(g), depth, α, β)
             #create new state
             gNew = newState(g, card)
 
-            # #DEBUG
-            # print(g)
-            # #END DEBUG
+            newBeta, bm = alfabeta(gNew, depth-1, α, β)
+            if newBeta < β
+                bestMoves = card
+                β = newBeta
+            elseif newBeta == β
+                bestMoves += card
+            end
 
-            β = min(β, alfabeta(gNew, depth-1, α, β))
+            # # #DEBUG
+            # if depth > -2
+            #     moves[card] = α
+            # end
+            # # #END DEBUG
+
             if β ≤ α
                 break                             # (* Alpha cut-off *)
             end
         end
-        return β
+        return β, bestMoves
     end
 end
 # Notes:

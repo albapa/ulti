@@ -1,23 +1,25 @@
 # This file was a part of Julia. License is MIT: http://julialang.org/license
 
-import Base: AbstractSet, similar, copy, copy!, eltype, push!, pop!, delete!, shift!,
+import Base: AbstractSet, similar, copy, copy!, eltype, push!, pop!, delete!,
              empty!, isempty, union, union!, intersect, intersect!,
-             setdiff, setdiff!, symdiff, symdiff!, in, start, next, done,
-             last, length, show, display, hash, issubset, ==, <=, <, +, *, -, $, !, unsafe_getindex,
-             unsafe_setindex!, findnextnot, first, getindex, rand
+             setdiff, setdiff!, symdiff, symdiff!, in, iterate,
+             last, length, show, display, hash, issubset, ==, <=, <, +, *, -, !, unsafe_getindex,
+             unsafe_setindex!, findnextnot, first, getindex, rand, xor
+using Random
+
 if !isdefined(Base, :complement)
     export complement, complement!
 else
     import Base: complement, complement!
 end
 
-immutable CardSet32 <: AbstractSet
+struct CardSet32 <: AbstractSet{UInt32}
     cs::UInt32
 end
 
 #IDEA offset as type parameter -> CardSet32{:offset}, CardSet32{:5} -> get it with eltype
 
-typealias Card CardSet32 #a card is a card set with one element
+const Card = CardSet32 #a card is a card set with one element
 
 CardSet32() = CardSet32(UInt32(0))
 
@@ -47,6 +49,7 @@ intersect(cs1::CardSet32, css...) = intersect(cs1, intersect(css...))
 *(cs1::CardSet32, cs2::CardSet32) = intersect(cs1, cs2)
 
 in(cs1::CardSet32, cs2::CardSet32) = isequal(cs1.cs, cs1.cs & cs2.cs)
+hash(cs1::CardSet32) = cs1.cs
 
 function in(cardIndex::Int64, cs2::CardSet32)
     if 0 <= cardIndex < 32
@@ -69,7 +72,7 @@ complement(cs1::CardSet32) = CardSet32(~cs1.cs)
 setdiff(cs1::CardSet32, cs2::CardSet32) = intersect(cs1, complement(cs2))
 -(cs1::CardSet32, cs2::CardSet32) = setdiff(cs1, cs2)
 
-symdiff(cs1::CardSet32, cs2::CardSet32) = CardSet32(cs1.cs $ cs2.cs) #xor / flip
+symdiff(cs1::CardSet32, cs2::CardSet32) = CardSet32(xor(cs1.cs, cs2.cs)) #xor / flip
 xor(cs1::CardSet32, cs2::CardSet32) = symdiff(cs1, cs2)
 
 
@@ -87,16 +90,14 @@ end
 
 isempty(cs1::CardSet32) = isequal(cs1.cs, UInt32(0))
 
-typealias CardSet32_iterstate Tuple{UInt32, UInt32}
-function start(cs1::CardSet32)
-    return (cs1.cs, 0x80000000) #state is the set and an index
+const CardSet32_iterstate = Tuple{UInt32, UInt32}
+
+function iterate(cs1::CardSet32)
+    return iterate(cs1, (cs1.cs, 0x80000000)) #state is the set and an index
 end
 
-function done(cs1::CardSet32, state::CardSet32_iterstate)
-    return isequal(state[1], UInt32(0))
-end
-
-function next(cs1::CardSet32, state::CardSet32_iterstate)
+function iterate(cs1::CardSet32, state::CardSet32_iterstate)
+    isequal(state[1], UInt32(0)) && return nothing
     leadzeros = leading_zeros(state[1])
     nextValue = state[2] >>> leadzeros
     return (CardSet32(nextValue), (state[1] << (leadzeros + 1), nextValue >>> 1))
