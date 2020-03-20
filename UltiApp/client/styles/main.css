@@ -5,7 +5,7 @@ body {
     background-color: darkgreen;
 }
 .board {
-    width: 1000px;
+    width: 1050px;
     height: 700px;
     border: 1px solid lightgray;
     margin: 0;
@@ -13,7 +13,7 @@ body {
     display: flex;
 }
 .game-place{
-    width: 800px;
+    width: 850px;
     height: 700px;
     margin: 0;
     padding: 0;
@@ -48,7 +48,10 @@ body {
     text-align: center;
 }
 .largecard {
-    display: block;
+    display: none;
+    position: absolute;
+}
+.elolrol-butt {
     position: absolute;
 }
 #events {
