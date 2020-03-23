@@ -292,6 +292,7 @@ const onEntrySubmitted = (e) => {
             hand = hand.concat(arr);
             showCards(hand);
             state = "talonozas";
+            sock.emit('tospec', hand);
         });
         sock.on('nezelod', () => {
             clearTable();

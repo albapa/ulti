@@ -14,11 +14,8 @@ const server = http.createServer(app);
 
 const io = socketio(server);
 
-var players = [];
-var playerIds = [];
+var players = {};
 var playerSockets = [];
-
-let waitingPlayer = null;
 
 function shuffle(arr) {
     var ctr = arr.length, temp, index;
@@ -32,9 +29,27 @@ function shuffle(arr) {
     return arr;
 }
 
-function UltiGame (ps, pids, psocks){
+function checkConnected() {
+    var tmplayers = {};
+    var tmplayersock = [];
+    Object.keys(players).forEach(id => {
+        if (io.sockets.connected[id]) { 
+            tmplayers[id] = players[id];
+            playerSockets.forEach(s => {
+                if (s.id == id){
+                    tmplayersock.push(s);
+                }
+            });
+            
+        }
+    });
+    players = tmplayers;
+    playerSockets = tmplayersock;
+    io.emit('plist', Object.values(players).join("<br/>"));
+}
+
+function UltiGame (psocks){
     var finplayers = [];
-    var finplayerindexes = [];
     var spectators = [];
     var frontwinner;
     var cards = ['M1.png', 'M2.png', 'M3.png', 'M4.png', 'M5.png', 'M6.png', 'M7.png', 'M8.png', 'P1.png', 'P2.png', 'P3.png', 'P4.png', 'P5.png', 'P6.png', 'P7.png', 'P8.png', 'T1.png', 'T2.png', 'T3.png', 'T4.png', 'T5.png', 'T6.png', 'T7.png', 'T8.png', 'Z1.png', 'Z2.png', 'Z3.png', 'Z4.png', 'Z5.png', 'Z6.png', 'Z7.png', 'Z8.png'];
@@ -42,7 +57,6 @@ function UltiGame (ps, pids, psocks){
         sock.emit('message', "Induljon a jatek");
     })
     var aktdeck = shuffle(cards);
-    //var pass1 = 0;
     var cnt= 0;
     psocks.forEach(s => {
         s.emit('elolrol', aktdeck.slice(cnt, cnt+5));
@@ -51,18 +65,14 @@ function UltiGame (ps, pids, psocks){
     var leftover = aktdeck.slice(cnt);
 
     psocks.forEach((player, idx) => {
-        //console.log(player.eventNames);
         player.on('jatszok', () => {
             if (finplayers.length == 2 && leftover.length == 17){
-                //console.log("haho");
                 frontwinner = player;
                 finplayers.push(player);
-                finplayerindexes.push(idx);
                 leftover = shuffle(leftover);
                 cnt = 0;
                 finplayers.forEach(s => {
                     s.emit('hatulrol', leftover.slice(cnt, cnt+5));
-                    //console.log("Emitted to " + s.id);
                     cnt += 5;
                 });
                 frontwinner.emit('hatulrol', leftover.slice(cnt));
@@ -78,14 +88,15 @@ function UltiGame (ps, pids, psocks){
         });
         player.on('megyek', () => {
             finplayers.push(player);
-            finplayerindexes.push(idx);
-            //console.log(finplayerindexes);
         });
         player.on('bedobom', (arr) => {
-            //console.log(leftover);
             leftover = leftover.concat(arr);
             spectators.push(player);
-            //console.log(leftover);
+        });
+        player.on('tospec', (arr) => {
+            spectators.forEach(s => {
+                
+            });
         });
     });
 }
@@ -98,25 +109,11 @@ function UltiGame (ps, pids, psocks){
 io.on('connection', (sock) => {
     console.log('Someone connected');
     sock.on('name', (text) => {
-        players.push(text);
-        playerIds.push(sock.id);
+        players[sock.id] = text;
         playerSockets.push(sock);
         console.log('Belepett ' + text + ' ID: ' + sock.id);
-        var tmplayers = [];
-        var tmplayerids = [];
-        var tmplayersock = [];
-        playerIds.forEach((id, idx) => {
-            if (io.sockets.connected[id]) { 
-                tmplayers.push(players[idx]);
-                tmplayerids.push(playerIds[idx]);
-                tmplayersock.push(playerSockets[idx]); 
-            }
-        });
-        players = tmplayers;
-        playerIds = tmplayerids;
-        playerSockets = tmplayersock;
-        io.emit('plist', players.join("<br/>"));
-        if (playerIds.length > 2){
+        checkConnected();
+        if (Object.keys(players).length > 2){
             io.emit('message', 'Indulhat a jatek');
             io.emit('canstart');
         }
@@ -129,28 +126,9 @@ io.on('connection', (sock) => {
         io.emit('message', text);
     });
     sock.on('start', () => {
-        var tmplayers = [];
-        var tmplayerids = [];
-        var tmplayersock = [];
-        playerIds.forEach((id, idx) => {
-            if (io.sockets.connected[id]) { 
-                tmplayers.push(players[idx]);
-                tmplayerids.push(playerIds[idx]);
-                tmplayersock.push(playerSockets[idx]); 
-            }
-            // console.log(tmplayers.length);
-            // console.log(tmplayerids.length);
-            // console.log(tmplayersock.length);
-        });
-        players = tmplayers;
-        playerIds = tmplayerids;
-        playerSockets = tmplayersock;
-        // console.log(players.length);
-        // console.log(playerIds.length);
-        // console.log(playerSockets.length);
-        io.emit('plist', players.join("<br/>"));
+        checkConnected();
         //start a game
-        UltiGame(players, playerIds, playerSockets);
+        UltiGame(playerSockets);
     });
 })
 
