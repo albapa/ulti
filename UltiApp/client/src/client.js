@@ -5,6 +5,7 @@ var cards = ['M1.png', 'M2.png', 'M3.png', 'M4.png', 'M5.png', 'M6.png', 'M7.png
 var hand = [];
 var state = "elol";
 var talon = [];
+var clicked = "";
 
 function shuffle(arra1) {
     var ctr = arra1.length, temp, index;
@@ -19,10 +20,20 @@ function shuffle(arra1) {
 }
 
 function moveCardUp(x){
-    x.style.bottom = "60px";
+    //if (hand.includes(x.id + ".png")){
+    //if (x.id != clicked){
+        var pos = x.style.bottom;
+        pos = parseInt(pos.replace("px", "")) + 30;
+        x.style.bottom = pos + "px";
+    //}
 }
 function moveCardBack(x){
-    x.style.bottom = "20px";
+    //if (hand.includes(x.id + ".png")){
+    //if (x.id != clicked){
+        var pos = x.style.bottom;
+        pos = parseInt(pos.replace("px", "")) - 30;
+        x.style.bottom = pos + "px";
+    //}
 }
 
 function clearTable(){
@@ -32,21 +43,68 @@ function clearTable(){
         x.style.display = "none";
     });
 }
+
+function clearTablePart(arr){
+    arr.forEach(c => {
+        var id = c.substring(0,2);
+        x = document.getElementById(id);
+        x.style.display = "none";
+    });
+}
 function playcard(id){
     var tid = id + ".png";
     if (state == "talonozas"){
-        if (hand.length > 10) {
-            
+        if (hand.includes(tid)) {
+            if (hand.length > 10){
+                var tmhand = [];
+                clicked = id;
+                //console.log(talon);
+                hand.forEach(c => {
+                    //var x = document.getElementById(tid.substring(0,2));
+                    //x.setAttribute("onmouseout", "");
+                    if (c != tid){
+                        tmhand.push(c);
+                    }
+                    else{
+                        talon.push(c);
+
+                    }
+                });
+                hand = tmhand;
+                //console.log(talon);
+                //talon = tmtalon;
+                clearTable();
+                showCards(hand);
+                showTalon(talon);
+            }
+        }
+        else {
+            if (talon.length > 0 && talon.includes(tid)){
+                var tmtalon = [];
+                clicked = id;
+                talon.forEach(c => {
+                    if (c != tid){
+                        tmtalon.push(c);
+                    }
+                    else{
+                        hand.push(c);
+
+                    }
+                });
+                talon = tmtalon;
+                clearTable();
+                showCards(hand);
+                showTalon(talon);
+            }
         }
     }
     if (state == "lejatszas"){
         var x = document.getElementById(id);
         x.style.display = "none";
-        id = id + ".png";
-        sock.emit('playcard', id);
+        sock.emit('playcard', tid);
         var tmhand = [];
         hand.forEach(c => {
-            if (c != id){
+            if (c != tid){
                 tmhand.push(c);
             }
         });
@@ -56,12 +114,35 @@ function playcard(id){
 }
 function showCards (arr){
     arr.sort();
-    for (i = 0; i < arr.length; i++){
+    for (var i = 0; i < arr.length; i++){
         var id = arr[i].substring(0,2);
-        x = document.getElementById(id);
-        x.style.display = "block";
+        var x = document.getElementById(id);
         x.style.left = (20 + i * 60) + "px";
         x.style.zIndex = i;
+        //x.setAttribute("onmouseout", "moveCardBack(this)");
+        //x.onmouseout = "moveCardBack(this)";
+        x.style.bottom = "20px";
+        if (id == clicked){
+            x.style.bottom = "50px";
+        }
+        x.style.display = "block";
+    }
+}
+function showTalon (arr){
+    //clearTablePart(arr);
+    arr.sort();
+    for (var j = 0; j < arr.length; j++){
+        var id = arr[j].substring(0,2);
+        var x = document.getElementById(id);
+        x.style.left = (200 + j * 130) + "px";
+        x.style.zIndex = j+12;
+        //x.setAttribute("onmouseout", "moveCardBack(this)");
+        //x.onmouseout = "moveCardBack(this)";
+        x.style.bottom = "300px";
+        if (id == clicked){
+            x.style.bottom = "330px";
+        }
+        x.style.display = "block";
     }
 }
 
@@ -213,9 +294,6 @@ const onEntrySubmitted = (e) => {
             state = "talonozas";
         });
         sock.on('nezelod', () => {
-            document.removeEventListener('submit', onBedobom);
-            document.removeEventListener('submit', onMegyek);
-            document.removeEventListener('submit', onJatszok);
             clearTable();
         });
         
