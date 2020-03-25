@@ -16,6 +16,8 @@ const io = socketio(server);
 
 var players = {};
 var playerSockets = [];
+var talon = [];
+var gamenum = 0;
 
 function shuffle(arr) {
     var ctr = arr.length, temp, index;
@@ -96,6 +98,25 @@ function UltiGame (psocks){
         player.on('tospec', (arr) => {
             spectators.forEach(s => {
                 
+            });
+        });
+        player.on('talonbe', (arr) => {
+            talon = arr;
+            finplayers.forEach(s => {
+                s.emit('talonvan');
+            });
+        });
+        player.on('talonki', () => {
+            player.emit('hatulrol', talon);
+        });
+        player.on('lejatszas', () => {
+            finplayers.forEach(s => {
+                s.emit('hatulindul');
+            });
+        });
+        player.on('playcard', (lap) => {
+            finplayers.forEach(s => {
+                s.emit('asztalra', lap);
             });
         });
     });

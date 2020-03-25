@@ -6,6 +6,7 @@ var hand = [];
 var state = "elol";
 var talon = [];
 var clicked = "";
+var asztalcnt = 0;
 
 function shuffle(arra1) {
     var ctr = arra1.length, temp, index;
@@ -20,35 +21,27 @@ function shuffle(arra1) {
 }
 
 function moveCardUp(x){
-    //if (hand.includes(x.id + ".png")){
-    //if (x.id != clicked){
-        var pos = x.style.bottom;
-        pos = parseInt(pos.replace("px", "")) + 30;
-        x.style.bottom = pos + "px";
-    //}
+    var pos = x.style.bottom;
+    pos = parseInt(pos.replace("px", "")) + 30;
+    x.style.bottom = pos + "px";
 }
 function moveCardBack(x){
-    //if (hand.includes(x.id + ".png")){
-    //if (x.id != clicked){
-        var pos = x.style.bottom;
-        pos = parseInt(pos.replace("px", "")) - 30;
-        x.style.bottom = pos + "px";
-    //}
+    var pos = x.style.bottom;
+    pos = parseInt(pos.replace("px", "")) - 30;
+    x.style.bottom = pos + "px";
 }
 
 function clearTable(){
     cards.forEach(c => {
         var id = c.substring(0,2);
-        x = document.getElementById(id);
-        x.style.display = "none";
+        hideDiv(id);
     });
 }
 
 function clearTablePart(arr){
     arr.forEach(c => {
         var id = c.substring(0,2);
-        x = document.getElementById(id);
-        x.style.display = "none";
+        hideDiv(id);
     });
 }
 function playcard(id){
@@ -58,10 +51,7 @@ function playcard(id){
             if (hand.length > 10){
                 var tmhand = [];
                 clicked = id;
-                //console.log(talon);
                 hand.forEach(c => {
-                    //var x = document.getElementById(tid.substring(0,2));
-                    //x.setAttribute("onmouseout", "");
                     if (c != tid){
                         tmhand.push(c);
                     }
@@ -71,8 +61,6 @@ function playcard(id){
                     }
                 });
                 hand = tmhand;
-                //console.log(talon);
-                //talon = tmtalon;
                 clearTable();
                 showCards(hand);
                 showTalon(talon);
@@ -97,11 +85,15 @@ function playcard(id){
                 showTalon(talon);
             }
         }
+        hideDiv("talonozok-butt");
+        if (talon.length == 2){
+            showDiv("talonozok-butt");
+        }
     }
     if (state == "lejatszas"){
-        var x = document.getElementById(id);
-        x.style.display = "none";
-        sock.emit('playcard', tid);
+        hideDiv(id);
+        clicked = id;
+        sock.emit('playcard', id);
         var tmhand = [];
         hand.forEach(c => {
             if (c != tid){
@@ -109,7 +101,9 @@ function playcard(id){
             }
         });
         hand = tmhand;
+        clearTable();
         showCards(hand);
+        state = "lejatszas_varakozik";
     }
 }
 function showCards (arr){
@@ -119,8 +113,6 @@ function showCards (arr){
         var x = document.getElementById(id);
         x.style.left = (20 + i * 60) + "px";
         x.style.zIndex = i;
-        //x.setAttribute("onmouseout", "moveCardBack(this)");
-        //x.onmouseout = "moveCardBack(this)";
         x.style.bottom = "20px";
         if (id == clicked){
             x.style.bottom = "50px";
@@ -129,15 +121,12 @@ function showCards (arr){
     }
 }
 function showTalon (arr){
-    //clearTablePart(arr);
     arr.sort();
     for (var j = 0; j < arr.length; j++){
         var id = arr[j].substring(0,2);
         var x = document.getElementById(id);
         x.style.left = (200 + j * 130) + "px";
         x.style.zIndex = j+12;
-        //x.setAttribute("onmouseout", "moveCardBack(this)");
-        //x.onmouseout = "moveCardBack(this)";
         x.style.bottom = "300px";
         if (id == clicked){
             x.style.bottom = "330px";
@@ -145,14 +134,42 @@ function showTalon (arr){
         x.style.display = "block";
     }
 }
-
-
+function showAsztal (id){
+    var x = document.getElementById(id);
+    x.style.left = (100 + asztalcnt * 130) + "px";
+    x.style.zIndex = asztalcnt + 12;
+    x.style.bottom = "300px";
+    if (id == clicked){
+        x.style.bottom = "330px";
+    }
+    x.style.display = "block";
+    clicked = "";
+}
+function createElolButton (par, name, b, l){
+    const dv = document.createElement('div');
+    dv.setAttribute("id", name + "-butt");
+    dv.setAttribute("class", "elolrol-butt");
+    dv.setAttribute("style", "display: none; bottom: " + b + "px; left: " + l + "px");
+    const fr = document.createElement('form');
+    fr.setAttribute("id", name + "-form");
+    const bt = document.createElement('button');
+    bt.innerText = name.charAt(0).toUpperCase() + name.slice(1);
+    fr.appendChild(bt);
+    dv.appendChild(fr);
+    par.appendChild(dv);
+}
+function hideDiv (id){
+    var x = document.getElementById(id);
+    x.style.display = "none";
+}
+function showDiv (id){
+    var x = document.getElementById(id);
+    x.style.display = "block";
+}
 const sock = io();
 
 const writeEvent = (text) => {
-    // <ul> element
     const parent = document.querySelector('#events');
-    // <li> element
     const el = document.createElement('li');
     el.innerHTML = text;
     parent.appendChild(el);
@@ -166,7 +183,6 @@ const onFormSubmitted = (e) => {
     const input = document.querySelector('#chat');
     const text = input.value;
     input.value = '';
-
     sock.emit('message', userName + ": " + text);
 }
 const onStartGame = (e) => {
@@ -177,8 +193,7 @@ const onBedobom = (e) => {
     e.preventDefault();
     sock.emit('bedobom', hand);
     butt_arr.forEach(x => {
-        x = document.getElementById(x + "-butt");
-        x.style.display = "none";
+        hideDiv(x + "-butt");
     });
     sock.emit('message', userName + ": bedobta");
 }
@@ -186,8 +201,7 @@ const onMegyek = (e) => {
     e.preventDefault();
     sock.emit('megyek');
     butt_arr.forEach(x => {
-        x = document.getElementById(x + "-butt");
-        x.style.display = "none";
+        hideDiv(x + "-butt");
     });
     sock.emit('message', userName + ": megy tovabb");
 }
@@ -195,18 +209,32 @@ const onJatszok = (e) => {
     e.preventDefault();
     sock.emit('jatszok');
     butt_arr.forEach(x => {
-        x = document.getElementById(x + "-butt");
-        x.style.display = "none";
+        hideDiv(x + "-butt");
     });
     sock.emit('message', userName + ": jatszik");
 }
-
-
+const onTalon = (e) => {
+    e.preventDefault();
+    sock.emit('talonbe', talon);
+    hideDiv("talonozok-butt");
+    clearTablePart(talon);
+    talon = [];
+    clicked = '';
+}
+const onFelvesz = (e) => {
+    e.preventDefault();
+    sock.emit('talonki');
+    hideDiv("felveszem-butt");
+}
+const onLej = (e) => {
+    e.preventDefault();
+    sock.emit('lejatszas');
+    hideDiv("felveszem-butt");
+}
 
 const parent = document.querySelector('#gameplace');
 cards.forEach(imageFile => {
     var id = imageFile.substring(0,2);
-    
     const g = document.createElement('div');
     g.setAttribute("id", id);
     g.setAttribute("class", "largecard");
@@ -218,29 +246,23 @@ cards.forEach(imageFile => {
     p.setAttribute("src", "cards/" + imageFile);
     g.appendChild(p);
     parent.appendChild(g);
-    // var d = document.getElementById(id);
-    // d.style.display = "hide";
 });
 var butt_arr = ["bedobom", "megyek", "jatszok"];
 var spacer = 0;
 butt_arr.forEach(val=> {
-    const dv = document.createElement('div');
-    dv.setAttribute("id", val + "-butt");
-    dv.setAttribute("class", "elolrol-butt");
-    dv.setAttribute("style", "display: none; bottom: 300px; left: " + (spacer+100) + "px");
-    const fr = document.createElement('form');
-    fr.setAttribute("id", val + "-form");
-    const bt = document.createElement('button');
-    bt.innerText = val.charAt(0).toUpperCase() + val.slice(1);
-    fr.appendChild(bt);
-    dv.appendChild(fr);
-    parent.appendChild(dv);
+    createElolButton(parent, val, 300, spacer + 100);
     spacer+=120;
 })
+createElolButton(parent, "talonozok", 400, 500);
+createElolButton(parent, "felveszem", 400, 500);
+createElolButton(parent, "lejatszas", 400, 250);
 document.querySelector('#start-game').addEventListener('submit', onStartGame);
 document.querySelector('#bedobom-form').addEventListener('submit', onBedobom);
 document.querySelector('#megyek-form').addEventListener('submit', onMegyek);
 document.querySelector('#jatszok-form').addEventListener('submit', onJatszok);
+document.querySelector('#talonozok-form').addEventListener('submit', onTalon);
+document.querySelector('#felveszem-form').addEventListener('submit', onFelvesz);
+document.querySelector('#lejatszas-form').addEventListener('submit', onLej);
 document.querySelector('#chat-form').addEventListener('submit', onFormSubmitted);
 
 const onEntrySubmitted = (e) => {
@@ -248,25 +270,11 @@ const onEntrySubmitted = (e) => {
     const input = document.querySelector('#name');
     userName = input.value;
     if (userName){
-       
-
-        // const addButtonListeners = () => {
-        //     ['rock', 'paper', 'scissors'].forEach((id) =>{
-        //         const button = document.getElementById(id);
-        //         button.addEventListener('click', () => {
-        //             sock.emit('turn', id);
-        //         });
-        //     });
-        // };
-        var x = document.getElementById("entry");
-        x.style.display = "none";
-        x = document.getElementById("mainblock");
+        hideDiv("entry");
+        var x = document.getElementById("mainblock");
         x.style.display = "flex";
-        var x = document.getElementById("start-game");
-        x.style.display = "none";
+        hideDiv("start-game");
         writeEvent('Otlapos Ulti beszelgetes');
-
-        
         sock.on('message', (text) => {
             writeEvent(text);
         });
@@ -274,17 +282,16 @@ const onEntrySubmitted = (e) => {
             writePlayerList("Belepett jatekosok:<br/>" + text);
         });
         sock.on('canstart', () => {
-            var x = document.getElementById("start-game");
-            x.style.display = "block";
+            showDiv("start-game");
         });
         sock.on('elolrol', (subarr)=>{
             clearTable();
+            state = "elol";
             hand = [];
             hand = hand.concat(subarr);
             showCards(hand);
             butt_arr.forEach(x => {
-                x = document.getElementById(x + "-butt");
-                x.style.display = "block";
+                showDiv(x + "-butt");
             });
         });
         sock.on('hatulrol', (arr) => {
@@ -297,18 +304,24 @@ const onEntrySubmitted = (e) => {
         sock.on('nezelod', () => {
             clearTable();
         });
-        
-        //addButtonListeners();
+        sock.on('talonvan', () => {
+            showDiv("felveszem-butt");
+            showDiv("lejatszas-butt");
+        });
+        sock.on('hatulindul', () => {
+            hideDiv("felveszem-butt");
+            hideDiv("lejatszas-butt");
+            state = "lejatszas";
+        });
+        sock.on('asztalra', (lap) => {
+            showAsztal(lap);
+            asztalcnt++;
+        })
         sock.emit('name', userName);
     }
-    
 };
 
-
-
-
 if (userName == null){
-    var x = document.getElementById("mainblock");
-    x.style.display = "none";
+    hideDiv("mainblock");
     document.querySelector('#entry-form').addEventListener('submit', onEntrySubmitted);
 }
