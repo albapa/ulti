@@ -7,6 +7,7 @@ var state = "elol";
 var talon = [];
 var clicked = "";
 var asztalcnt = 0;
+var utesek = {};
 
 function shuffle(arra1) {
     var ctr = arra1.length, temp, index;
@@ -92,7 +93,7 @@ function playcard(id){
     }
     if (state == "lejatszas"){
         hideDiv(id);
-        clicked = id;
+        //clicked = id;
         sock.emit('playcard', id);
         var tmhand = [];
         hand.forEach(c => {
@@ -101,7 +102,7 @@ function playcard(id){
             }
         });
         hand = tmhand;
-        clearTable();
+        clearTablePart(hand);
         showCards(hand);
         state = "lejatszas_varakozik";
     }
@@ -158,6 +159,20 @@ function createElolButton (par, name, b, l){
     dv.appendChild(fr);
     par.appendChild(dv);
 }
+function createUteseklButton (par, num, b, l){
+    const dv = document.createElement('div');
+    dv.setAttribute("id", "utesek" + num);
+    dv.setAttribute("class", "elolrol-butt");
+    dv.setAttribute("style", "display: none; bottom: " + b + "px; left: " + l + "px");
+    //const fr = document.createElement('form');
+    //fr.setAttribute("id", name + "-form");
+    const bt = document.createElement('button');
+    bt.setAttribute("id", "utesbutton" + num);
+    bt.setAttribute("onmouseover", "showUtesek(this.id)");
+    bt.setAttribute("onmouseout", "hideUtesek(this.id)");
+    dv.appendChild(bt);
+    par.appendChild(dv);
+}
 function hideDiv (id){
     var x = document.getElementById(id);
     x.style.display = "none";
@@ -166,6 +181,55 @@ function showDiv (id){
     var x = document.getElementById(id);
     x.style.display = "block";
 }
+function reDrawHits(u){
+    var cnt1 = 0;
+    Object.keys(u).forEach(name => {
+        var x = document.getElementById("utesek" + cnt1);
+        x.style.display = "block";
+        x = document.getElementById("utesbutton" + cnt1);
+        x.innerText = name + " utesei";
+        cnt1++;
+    });
+}
+function removeUtesekButt(){
+    var arr = [0, 1, 2];
+    arr.forEach(num => {
+        var x = document.getElementById("utesek" + num);
+        x.style.display = "none";
+    });
+}
+function showUtesek (pid){
+    var num = pid.slice(-1);
+    var arr = Object.keys(utesek);
+    var lapok = utesek[arr[num]];
+    var utesekcnt = 0;
+    var harmas = 0;
+    lapok.forEach(id => {
+        var x = document.getElementById(id + "k");
+        x.style.left = (20 + utesekcnt * 15) + "px";
+        x.style.zIndex = utesekcnt + 20;
+        x.style.bottom = (530 - harmas * 30) + "px";
+        x.style.display = "block";
+        utesekcnt++;
+        harmas++;
+        if (harmas == 3){
+            utesekcnt += 2;
+            harmas = 0;
+        }
+    });
+}
+function hideUtesek (pid){
+    var num = pid.slice(-1);
+    var arr = Object.keys(utesek);
+    var lapok = utesek[arr[num]];
+    var utesekcnt = 0;
+    lapok.forEach(id => {
+        var x = document.getElementById(id + "k");
+        x.style.display = "none";
+    });
+}
+
+
 const sock = io();
 
 const writeEvent = (text) => {
@@ -231,11 +295,20 @@ const onLej = (e) => {
     sock.emit('lejatszas');
     hideDiv("felveszem-butt");
 }
+const onVisz = (e) => {
+    e.preventDefault();
+    sock.emit('viszem');
+}
+const onUjParti = (e) => {
+    e.preventDefault();
+    sock.emit('ujparti');
+}
 
 const parent = document.querySelector('#gameplace');
 cards.forEach(imageFile => {
     var id = imageFile.substring(0,2);
-    const g = document.createElement('div');
+    // Nagy kartyak legyartasa
+    g = document.createElement('div');
     g.setAttribute("id", id);
     g.setAttribute("class", "largecard");
     g.setAttribute("style", "display: none; bottom: 20px");
@@ -244,6 +317,17 @@ cards.forEach(imageFile => {
     g.setAttribute("onmouseout", "moveCardBack(this)");
     p = document.createElement("img");
     p.setAttribute("src", "cards/" + imageFile);
+    g.appendChild(p);
+    parent.appendChild(g);
+    //Kis kartyak legyartasa
+    g = document.createElement('div');
+    g.setAttribute("id", id + "k");
+    g.setAttribute("class", "smallcard");
+    g.setAttribute("style", "display: none");
+    p = document.createElement("img");
+    p.setAttribute("src", "cards/" + imageFile);
+    p.setAttribute("width", "64");
+    p.setAttribute("height", "100");
     g.appendChild(p);
     parent.appendChild(g);
 });
@@ -256,6 +340,8 @@ butt_arr.forEach(val=> {
 createElolButton(parent, "talonozok", 400, 500);
 createElolButton(parent, "felveszem", 400, 500);
 createElolButton(parent, "lejatszas", 400, 250);
+createElolButton(parent, "ujparti", 400, 250);
+createElolButton(parent, "viszem", 400, 500);
 document.querySelector('#start-game').addEventListener('submit', onStartGame);
 document.querySelector('#bedobom-form').addEventListener('submit', onBedobom);
 document.querySelector('#megyek-form').addEventListener('submit', onMegyek);
@@ -263,7 +349,13 @@ document.querySelector('#jatszok-form').addEventListener('submit', onJatszok);
 document.querySelector('#talonozok-form').addEventListener('submit', onTalon);
 document.querySelector('#felveszem-form').addEventListener('submit', onFelvesz);
 document.querySelector('#lejatszas-form').addEventListener('submit', onLej);
+document.querySelector('#viszem-form').addEventListener('submit', onVisz);
+document.querySelector('#ujparti-form').addEventListener('submit', onUjParti);
 document.querySelector('#chat-form').addEventListener('submit', onFormSubmitted);
+
+createUteseklButton(parent, "0", 650, 350);
+createUteseklButton(parent, "1", 650, 500);
+createUteseklButton(parent, "2", 650, 650);
 
 const onEntrySubmitted = (e) => {
     e.preventDefault();
@@ -286,6 +378,9 @@ const onEntrySubmitted = (e) => {
         });
         sock.on('elolrol', (subarr)=>{
             clearTable();
+            hideDiv("ujparti-butt");
+            utesek = {};
+            removeUtesekButt();
             state = "elol";
             hand = [];
             hand = hand.concat(subarr);
@@ -312,11 +407,39 @@ const onEntrySubmitted = (e) => {
             hideDiv("felveszem-butt");
             hideDiv("lejatszas-butt");
             state = "lejatszas";
+            utesek = {};
         });
         sock.on('asztalra', (lap) => {
             showAsztal(lap);
             asztalcnt++;
-        })
+            if (asztalcnt == 3){
+                showDiv("viszem-butt");
+                asztalcnt = 0;
+            }
+        });
+        sock.on('utes', (data) => {
+            hideDiv("viszem-butt");
+            //console.log(data.name);
+            //console.log(data.lapok);
+            if (!utesek[data.name]){
+                utesek[data.name] = data.lapok;
+            }
+            else{
+                utesek[data.name] = utesek[data.name].concat(data.lapok);
+            }
+            clearTablePart(data.lapok);
+            //console.log(utesek);
+            reDrawHits(utesek);
+            state = "lejatszas";
+            if (hand.length == 0){
+                hand = [];
+                state = "elol";
+                talon = [];
+                clicked = "";
+                asztalcnt = 0;
+                showDiv("ujparti-butt");
+            }
+        });
         sock.emit('name', userName);
     }
 };

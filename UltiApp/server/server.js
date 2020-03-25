@@ -17,7 +17,8 @@ const io = socketio(server);
 var players = {};
 var playerSockets = [];
 var talon = [];
-var gamenum = 0;
+var asztal = [];
+//var gamenum = 0;
 
 function shuffle(arr) {
     var ctr = arr.length, temp, index;
@@ -115,10 +116,30 @@ function UltiGame (psocks){
             });
         });
         player.on('playcard', (lap) => {
+            asztal.push(lap);
             finplayers.forEach(s => {
                 s.emit('asztalra', lap);
             });
         });
+        player.on('viszem', () => {
+            psocks.forEach(s =>{
+                s.emit('utes', {name: players[player.id], lapok: asztal});
+            });
+            asztal = [];
+        });
+        player.on('ujparti', () => {
+            finplayers = [];
+            spectators = [];
+            frontwinner = '';
+            aktdeck = shuffle(cards);
+            cnt= 0;
+            psocks.forEach(s => {
+                s.emit('elolrol', aktdeck.slice(cnt, cnt+5));
+                cnt += 5;
+            });
+            leftover = aktdeck.slice(cnt);
+
+        })
     });
 }
 

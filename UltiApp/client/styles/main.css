@@ -51,6 +51,10 @@ body {
     display: none;
     position: absolute;
 }
+.smallcard {
+    position: absolute;
+
+}
 .elolrol-butt {
     position: absolute;
 }
