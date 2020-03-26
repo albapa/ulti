@@ -127,6 +127,7 @@ function UltiGame (psocks){
             finplayers.forEach(s => {
                 s.emit('hatulindul');
             });
+            asztal = [];
         });
         player.on('playcard', (lap) => {
             asztal.push(lap);

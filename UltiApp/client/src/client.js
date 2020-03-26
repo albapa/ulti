@@ -12,6 +12,7 @@ var nemjatszik = 0;
 var spectator = 0;
 var tobbiek = [];
 var tobbicnt = 0;
+var tobbieklapja = [];
 
 function shuffle(arra1) {
     var ctr = arra1.length, temp, index;
@@ -235,9 +236,11 @@ function hideUtesek(pid){
 }
 function masoklapja(n, l){
     if (!tobbiek.includes(n)){
-        tobbicnt++;
         tobbiek[tobbicnt] = n;
+        tobbieklapja[tobbicnt] = l;
+        tobbicnt++;
     }
+    clearTable();
     tobbiek.forEach((name, idx) => {
         if (name == n){
             l.sort();
@@ -246,7 +249,20 @@ function masoklapja(n, l){
                 var x = document.getElementById(id);
                 x.style.left = (640 - i * 60) + "px";
                 x.style.zIndex = i;
-                x.style.bottom = ((idx+1)*220) + "px";
+                x.style.bottom = ((idx*200) + 20) + "px";
+                x.style.display = "block";
+            }
+            tobbieklapja[idx] = l;
+        }
+        else {
+            var arr = tobbieklapja[idx];
+            arr.sort();
+            for (var i = arr.length-1; i >= 0; i--){
+                var id = arr[i].substring(0,2);
+                var x = document.getElementById(id);
+                x.style.left = (640 - i * 60) + "px";
+                x.style.zIndex = i;
+                x.style.bottom = ((idx*200) + 20) + "px";
                 x.style.display = "block";
             }
         }
@@ -408,14 +424,22 @@ const onEntrySubmitted = (e) => {
             hideDiv("ujparti-butt");
             hideDiv("lejatszas-butt");
             hideDiv("talonozok-butt");
+            hideDiv("utesek0");
+            hideDiv("utesek1");
+            hideDiv("utesek2");
             utesek = {};
             asztalcnt = 0;
             talon = [];
             nemjatszik = 0;
             spectator = 0;
             tobbiek = [];
+            tobbieklapja = [];
             tobbicnt = 0;
-            removeUtesekButt();
+            cards.forEach(imageFile => {
+                var id = imageFile.substring(0,2);
+                hideDiv(id + "k");
+            });
+            //removeUtesekButt();
             state = "elol";
             hand = [];
             hand = hand.concat(subarr);
