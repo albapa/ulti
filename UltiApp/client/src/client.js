@@ -8,6 +8,7 @@ var talon = [];
 var clicked = "";
 var asztalcnt = 0;
 var utesek = {};
+var nemjatszik = 0;
 
 function shuffle(arra1) {
     var ctr = arra1.length, temp, index;
@@ -260,6 +261,7 @@ const onBedobom = (e) => {
         hideDiv(x + "-butt");
     });
     sock.emit('message', userName + ": bedobta");
+    nemjatszik = 1;
 }
 const onMegyek = (e) => {
     e.preventDefault();
@@ -268,6 +270,7 @@ const onMegyek = (e) => {
         hideDiv(x + "-butt");
     });
     sock.emit('message', userName + ": megy tovabb");
+    nemjatszik = 1;
 }
 const onJatszok = (e) => {
     e.preventDefault();
@@ -379,7 +382,12 @@ const onEntrySubmitted = (e) => {
         sock.on('elolrol', (subarr)=>{
             clearTable();
             hideDiv("ujparti-butt");
+            hideDiv("lejatszas-butt");
+            hideDiv("talonozok-butt");
             utesek = {};
+            asztalcnt = 0;
+            talon = [];
+            nemjatszik = 0;
             removeUtesekButt();
             state = "elol";
             hand = [];
@@ -388,6 +396,14 @@ const onEntrySubmitted = (e) => {
             butt_arr.forEach(x => {
                 showDiv(x + "-butt");
             });
+            hideDiv("jatszok-butt");
+        });
+        sock.on('hatulrolmehet', () => {
+            if (nemjatszik == 0){
+                hideDiv("bedobom-butt");
+                hideDiv("megyek-butt");
+                showDiv("jatszok-butt");
+            }
         });
         sock.on('hatulrol', (arr) => {
             clearTable();
@@ -402,6 +418,10 @@ const onEntrySubmitted = (e) => {
         sock.on('talonvan', () => {
             showDiv("felveszem-butt");
             showDiv("lejatszas-butt");
+        });
+        sock.on('talonnincs', () => {
+            hideDiv("felveszem-butt");
+            hideDiv("lejatszas-butt");
         });
         sock.on('hatulindul', () => {
             hideDiv("felveszem-butt");

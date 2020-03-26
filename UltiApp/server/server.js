@@ -91,10 +91,20 @@ function UltiGame (psocks){
         });
         player.on('megyek', () => {
             finplayers.push(player);
+            if (finplayers.length == 2 && leftover.length == 17){
+                psocks.forEach(s =>{
+                    s.emit('hatulrolmehet');
+                });
+            }
         });
         player.on('bedobom', (arr) => {
             leftover = leftover.concat(arr);
             spectators.push(player);
+            if (finplayers.length == 2 && leftover.length == 17){
+                psocks.forEach(s =>{
+                    s.emit('hatulrolmehet');
+                });
+            }
         });
         player.on('tospec', (arr) => {
             spectators.forEach(s => {
@@ -109,6 +119,9 @@ function UltiGame (psocks){
         });
         player.on('talonki', () => {
             player.emit('hatulrol', talon);
+            finplayers.forEach(s => {
+                s.emit('talonnincs');
+            });
         });
         player.on('lejatszas', () => {
             finplayers.forEach(s => {
@@ -180,4 +193,8 @@ server.on('error', (err) => {
 
 server.listen(8000, () => {
     console.log('Ulti started on 8000');
+});
+
+io.attach(server, {
+    pingTimeout: 30000
 });
