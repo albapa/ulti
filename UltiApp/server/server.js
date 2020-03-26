@@ -108,7 +108,7 @@ function UltiGame (psocks){
         });
         player.on('tospec', (arr) => {
             spectators.forEach(s => {
-                
+                s.emit('kezbenlap', {name: players[player.id], lapok: arr});
             });
         });
         player.on('talonbe', (arr) => {
@@ -195,6 +195,6 @@ server.listen(8000, () => {
     console.log('Ulti started on 8000');
 });
 
-io.attach(server, {
-    pingTimeout: 30000
-});
+// io.attach(server, {
+//     pingTimeout: 30000
+// });

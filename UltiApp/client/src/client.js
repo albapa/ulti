@@ -9,6 +9,9 @@ var clicked = "";
 var asztalcnt = 0;
 var utesek = {};
 var nemjatszik = 0;
+var spectator = 0;
+var tobbiek = [];
+var tobbicnt = 0;
 
 function shuffle(arra1) {
     var ctr = arra1.length, temp, index;
@@ -103,6 +106,7 @@ function playcard(id){
             }
         });
         hand = tmhand;
+        sock.emit('tospec', hand);
         clearTablePart(hand);
         showCards(hand);
         state = "lejatszas_varakozik";
@@ -199,7 +203,7 @@ function removeUtesekButt(){
         x.style.display = "none";
     });
 }
-function showUtesek (pid){
+function showUtesek(pid){
     var num = pid.slice(-1);
     var arr = Object.keys(utesek);
     var lapok = utesek[arr[num]];
@@ -219,7 +223,7 @@ function showUtesek (pid){
         }
     });
 }
-function hideUtesek (pid){
+function hideUtesek(pid){
     var num = pid.slice(-1);
     var arr = Object.keys(utesek);
     var lapok = utesek[arr[num]];
@@ -227,6 +231,25 @@ function hideUtesek (pid){
     lapok.forEach(id => {
         var x = document.getElementById(id + "k");
         x.style.display = "none";
+    });
+}
+function masoklapja(n, l){
+    if (!tobbiek.includes(n)){
+        tobbicnt++;
+        tobbiek[tobbicnt] = n;
+    }
+    tobbiek.forEach((name, idx) => {
+        if (name == n){
+            l.sort();
+            for (var i = l.length-1; i >= 0; i--){
+                var id = l[i].substring(0,2);
+                var x = document.getElementById(id);
+                x.style.left = (640 - i * 60) + "px";
+                x.style.zIndex = i;
+                x.style.bottom = ((idx+1)*220) + "px";
+                x.style.display = "block";
+            }
+        }
     });
 }
 
@@ -262,6 +285,7 @@ const onBedobom = (e) => {
     });
     sock.emit('message', userName + ": bedobta");
     nemjatszik = 1;
+    spectator = 1;
 }
 const onMegyek = (e) => {
     e.preventDefault();
@@ -388,6 +412,9 @@ const onEntrySubmitted = (e) => {
             asztalcnt = 0;
             talon = [];
             nemjatszik = 0;
+            spectator = 0;
+            tobbiek = [];
+            tobbicnt = 0;
             removeUtesekButt();
             state = "elol";
             hand = [];
@@ -458,6 +485,11 @@ const onEntrySubmitted = (e) => {
                 clicked = "";
                 asztalcnt = 0;
                 showDiv("ujparti-butt");
+            }
+        });
+        sock.on('kezbenlap', (data) => {
+            if (spectator == 1){
+                masoklapja(data.name, data.lapok);
             }
         });
         sock.emit('name', userName);
