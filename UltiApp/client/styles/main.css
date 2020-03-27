@@ -4,8 +4,15 @@ body {
     padding: 0;
     background-color: darkgreen;
 }
+.keret {
+    border-collapse: collapse;
+}
+.keret td {
+    padding: 0;
+    margin: 0;
+}
 .board {
-    width: 1050px;
+    width: 1250px;
     height: 700px;
     border: 1px solid lightgray;
     margin: 0;
@@ -13,11 +20,38 @@ body {
     display: flex;
 }
 .game-place{
-    width: 850px;
+    width: 1050px;
     height: 700px;
     margin: 0;
     padding: 0;
+    display: flex;
+}
+.asztal-place{
+    width: 450px;
+    height: 440px;
+    margin: 0;
+    padding: 0;
     position: relative;
+    display: block;
+    background-color: darkgreen;
+}
+.utesek-place{
+    width: 600px;
+    height: 440px;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    display: block;
+    background-color: rgb(11, 126, 11);
+}
+.sajat-place{
+    width: 1050px;
+    height: 260px;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    display: block;
+    background-color: rgb(61, 61, 61);
 }
 .event-holder{
     background-color: bisque;
@@ -53,7 +87,6 @@ body {
 }
 .smallcard {
     position: absolute;
-
 }
 .elolrol-butt {
     position: absolute;

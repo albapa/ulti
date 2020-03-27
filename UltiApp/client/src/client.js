@@ -214,7 +214,7 @@ function showUtesek(pid){
         var x = document.getElementById(id + "k");
         x.style.left = (20 + utesekcnt * 15) + "px";
         x.style.zIndex = utesekcnt + 20;
-        x.style.bottom = (530 - harmas * 30) + "px";
+        x.style.bottom = (530 - harmas * 15) + "px";
         x.style.display = "block";
         utesekcnt++;
         harmas++;
@@ -369,6 +369,7 @@ cards.forEach(imageFile => {
     g.setAttribute("style", "display: none");
     p = document.createElement("img");
     p.setAttribute("src", "cards/" + imageFile);
+    p.setAttribute("style", "clip-path: inset(0px 0px 50px 0px);")
     p.setAttribute("width", "64");
     p.setAttribute("height", "100");
     g.appendChild(p);
