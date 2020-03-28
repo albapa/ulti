@@ -18,6 +18,12 @@ var players = {};
 var playerSockets = [];
 var talon = [];
 var asztal = [];
+var kezdo = 0;
+var kovetkezo = 0;
+var tovabbmenok = [];
+var order = [];
+var numpassz = 0;
+var voltlicit = 0;
 //var gamenum = 0;
 
 function shuffle(arr) {
@@ -50,11 +56,36 @@ function checkConnected() {
     playerSockets = tmplayersock;
     io.emit('plist', Object.values(players).join("<br/>"));
 }
+function updatePlist (name, arr){
+    var tmparr = [];
+    arr.forEach(n => {
+        if (n == name){
+            tmparr.push("> " + n);
+        }
+        else{
+            tmparr.push(n);
+        }
+    });
+    io.emit('plist', tmparr.join("<br/>"));
+}
+function updateKovetkezo(idx, len){
+    if (idx == len - 1){
+        return 0;
+    }
+    else{
+        return idx+1;
+    }
+}
 
 function UltiGame (psocks){
     var finplayers = [];
     var spectators = [];
     var frontwinner;
+    var backwinner;
+    numpassz = 0;
+    tovabbmenok = [];
+    voltlicit = 0;
+    kezdo = 0;
     var cards = ['M1.png', 'M2.png', 'M3.png', 'M4.png', 'M5.png', 'M6.png', 'M7.png', 'M8.png', 'P1.png', 'P2.png', 'P3.png', 'P4.png', 'P5.png', 'P6.png', 'P7.png', 'P8.png', 'T1.png', 'T2.png', 'T3.png', 'T4.png', 'T5.png', 'T6.png', 'T7.png', 'T8.png', 'Z1.png', 'Z2.png', 'Z3.png', 'Z4.png', 'Z5.png', 'Z6.png', 'Z7.png', 'Z8.png'];
     psocks.forEach(sock => {
         sock.emit('message', "Induljon a jatek");
@@ -66,46 +97,140 @@ function UltiGame (psocks){
         cnt += 5;
     });
     var leftover = aktdeck.slice(cnt);
+    psocks[kezdo].emit('tejossz', voltlicit);
+    updatePlist(players[psocks[kezdo].id], Object.values(players));
+    //tovabbmenok.push(psocks[kezdo]);
+    kezdo++;
+    if (kezdo > psocks.length - 1){
+        kezdo = 0;
+    }
+    kovetkezo = kezdo;
+
 
     psocks.forEach((player, idx) => {
-        player.on('jatszok', () => {
-            if (finplayers.length == 2 && leftover.length == 17){
-                frontwinner = player;
-                finplayers.push(player);
-                leftover = shuffle(leftover);
-                cnt = 0;
-                finplayers.forEach(s => {
-                    s.emit('hatulrol', leftover.slice(cnt, cnt+5));
-                    cnt += 5;
-                });
-                frontwinner.emit('hatulrol', leftover.slice(cnt));
-                spectators.forEach(s => {
-                    s.emit('nezelod');
-                });
+        // player.on('jatszok', () => {
+        //     if (finplayers.length == 2 && leftover.length == 17){
+        //         frontwinner = player;
+        //         finplayers.push(player);
+        //         leftover = shuffle(leftover);
+        //         cnt = 0;
+        //         finplayers.forEach(s => {
+        //             s.emit('hatulrol', leftover.slice(cnt, cnt+5));
+        //             cnt += 5;
+        //         });
+        //         frontwinner.emit('hatulrol', leftover.slice(cnt));
+        //         spectators.forEach(s => {
+        //             s.emit('nezelod');
+        //         });
                 // psocks.forEach((player, idx) => {
                 //     player.off('jatszok');
                 //     player.off('megyek');
                 //     player.off('bedobom');
                 // });
-            }
-        });
-        player.on('megyek', () => {
-            finplayers.push(player);
-            if (finplayers.length == 2 && leftover.length == 17){
-                psocks.forEach(s =>{
-                    s.emit('hatulrolmehet');
-                });
-            }
-        });
+        //     }
+        // });
+        // player.on('megyek', () => {
+        //     finplayers.push(player);
+        //     if (finplayers.length == 2 && leftover.length == 17){
+        //         psocks.forEach(s =>{
+        //             s.emit('hatulrolmehet');
+        //         });
+        //     }
+        // });
         player.on('bedobom', (arr) => {
             leftover = leftover.concat(arr);
-            spectators.push(player);
-            if (finplayers.length == 2 && leftover.length == 17){
-                psocks.forEach(s =>{
-                    s.emit('hatulrolmehet');
+            if (leftover.length == 17){
+                leftover = shuffle(leftover);
+                var cnt = 0;
+                finplayers.forEach(s => {
+                    s.emit('hatulrol', leftover.slice(cnt, cnt+5));
+                    cnt += 5;
                 });
+                frontwinner.emit('hatulrol', leftover.slice(cnt));
+                order = [];
+                finplayers.forEach( s => {
+                    order.push(players[s.id]);
+                });
+                spectators.forEach(s => {
+                    s.emit('nezelod', order);
+                });
+                updatePlist(players[frontwinner.id], Object.values(players));
+                kovetkezo = updateKovetkezo(finplayers.indexOf(frontwinner), finplayers.length);
+                numpassz = 0;
             }
         });
+        player.on('licit', () => {
+            if (tovabbmenok.indexOf(player) < 3){
+                var tmparr = [player];
+                tovabbmenok.forEach(p => {
+                    if (p != player){
+                        tmparr.push(p);
+                    }
+                });
+                tovabbmenok = tmparr;
+            }
+            else {
+                tovabbmenok.unshift(player);
+            }
+            
+            voltlicit = 1;
+            psocks[kovetkezo].emit('tejossz', voltlicit);
+            updatePlist(players[psocks[kovetkezo].id], Object.values(players));
+            kovetkezo = updateKovetkezo(kovetkezo, psocks.length);
+            numpassz = 0;
+        });
+        player.on('kontra', () => {
+            if (tovabbmenok.indexOf(player) < 3){
+                var tmparr = [tovabbmenok[0], player];
+                tovabbmenok.slice(1).forEach(p => { //!!!!!!
+                    if (p != player){
+                        tmparr.push(p);
+                    }
+                });
+            }
+            else {
+                var tmparr = [tovabbmenok[0], player, tovabbmenok.slice(1)];
+                
+            }
+            tovabbmenok = tmparr;
+            voltlicit = 0;
+            psocks[kovetkezo].emit('tejossz', voltlicit);
+            updatePlist(players[psocks[kovetkezo].id], Object.values(players));
+            kovetkezo = updateKovetkezo(kovetkezo, psocks.length);
+            numpassz = 0;
+        });
+        player.on('passz', () => {
+            numpassz++;
+            if (numpassz == psocks.length){
+                finplayers = tovabbmenok.slice(0,3);
+                frontwinner = finplayers[0];
+                backwinner = frontwinner;
+                spectators = [];
+                var tmarr = [];
+                psocks.forEach(s => {
+                    if (!finplayers.includes(s)){
+                        spectators.push(s);
+                        s.emit('lapotkerek');
+                    }
+                    else {
+                        tmarr.push(s);
+                    }
+                });
+                finplayers = tmarr;
+            }
+            else{
+                if (tovabbmenok.length < 3){
+                    tovabbmenok.push(player);
+                }
+                psocks[kovetkezo].emit('tejossz', voltlicit);
+                updatePlist(players[psocks[kovetkezo].id], Object.values(players));
+                kovetkezo = updateKovetkezo(kovetkezo, psocks.length);
+                
+            }
+        });
+
+
+
         player.on('tospec', (arr) => {
             spectators.forEach(s => {
                 s.emit('kezbenlap', {name: players[player.id], lapok: arr});
@@ -113,38 +238,60 @@ function UltiGame (psocks){
         });
         player.on('talonbe', (arr) => {
             talon = arr;
-            finplayers.forEach(s => {
-                s.emit('talonvan');
-            });
+            finplayers[kovetkezo].emit('talonvan');
+            updatePlist(players[finplayers[kovetkezo].id], Object.values(players));
         });
+
         player.on('talonki', () => {
             player.emit('hatulrol', talon);
-            finplayers.forEach(s => {
-                s.emit('talonnincs');
-            });
+            // finplayers.forEach(s => {
+            //     s.emit('talonnincs');
+            // });
+            kovetkezo = updateKovetkezo(kovetkezo, finplayers.length);
+            numpassz = 0;
+            backwinner = player;
+            //console.log(backwinner);
         });
-        player.on('lejatszas', () => {
-            finplayers.forEach(s => {
-                s.emit('hatulindul');
-            });
-            asztal = [];
+        player.on('mehet', () => {
+            kovetkezo = updateKovetkezo(kovetkezo, finplayers.length);
+            numpassz++;
+            if (numpassz == 3){
+                finplayers.forEach(s => {
+                    s.emit('hatulindul', order);
+                });
+                asztal = [];
+                backwinner.emit('tejossz', 0);
+                kovetkezo = finplayers.indexOf(backwinner);
+            }
+            else {
+                finplayers[kovetkezo].emit('talonvan');
+                updatePlist(players[finplayers[kovetkezo].id], Object.values(players));
+            }
         });
         player.on('playcard', (lap) => {
             asztal.push(lap);
-            finplayers.forEach(s => {
-                s.emit('asztalra', lap);
+            var tmarr = [lap, players[player.id]];
+            psocks.forEach(s => {
+                s.emit('asztalra', tmarr);
             });
+            kovetkezo = updateKovetkezo(kovetkezo, finplayers.length);
+            finplayers[kovetkezo].emit('tejossz', 0);
         });
         player.on('viszem', () => {
             psocks.forEach(s =>{
                 s.emit('utes', {name: players[player.id], lapok: asztal});
             });
             asztal = [];
+            player.emit('tejossz', 0);
+            kovetkezo = finplayers.indexOf(player);
         });
         player.on('ujparti', () => {
             finplayers = [];
             spectators = [];
             frontwinner = '';
+            numpassz = 0;
+            tovabbmenok = [];
+            voltlicit = 0;
             aktdeck = shuffle(cards);
             cnt= 0;
             psocks.forEach(s => {
@@ -152,7 +299,14 @@ function UltiGame (psocks){
                 cnt += 5;
             });
             leftover = aktdeck.slice(cnt);
-
+            psocks[kezdo].emit('tejossz', voltlicit);
+            updatePlist(players[psocks[kezdo].id], Object.values(players));
+            //tovabbmenok.push(psocks[kezdo]);
+            kezdo++;
+            if (kezdo > psocks.length - 1){
+                kezdo = 0;
+            }
+            kovetkezo = kezdo;
         })
     });
 }
