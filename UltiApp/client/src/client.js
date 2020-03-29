@@ -2,32 +2,31 @@ let userName = null;
 
 var cards = ['M1.png', 'M2.png', 'M3.png', 'M4.png', 'M5.png', 'M6.png', 'M7.png', 'M8.png', 'P1.png', 'P2.png', 'P3.png', 'P4.png', 'P5.png', 'P6.png', 'P7.png', 'P8.png', 'T1.png', 'T2.png', 'T3.png', 'T4.png', 'T5.png', 'T6.png', 'T7.png', 'T8.png', 'Z1.png', 'Z2.png', 'Z3.png', 'Z4.png', 'Z5.png', 'Z6.png', 'Z7.png', 'Z8.png'];
 
-var hand = [];
-var state = "elol";
-var talon = [];
-var clicked = "";
-var asztalcnt = 0;
-var utesek = {};
-var nemjatszik = 0;
-var spectator = 0;
-var tobbiek = [];
+var hand = []; // array a kezben levo lapokra
+var state = "elol"; // jatek fazis jelzo valtozo
+var talon = []; // array a talonnak
+var asztalcnt = 0; // hany lap van az asztalon
+var utesek = {}; // ez az objektum fogja gyujteni az uteseket
+var spectator = 0; // valtozo ha csak nezelodsz
+var tobbiek = []; // ezek a valtozok kellenek annak aki nezelodik a tobbiek kovetesere
 var tobbicnt = 0;
 var tobbieklapja = [];
-var order = [];
-var butt_arr = ["passz", "kontra", "licit"];
+var order = []; // a lejatszok sorrendje
+var butt_arr = ["passz", "kontra", "licit"]; // elolrol gombok
 
-function moveCardUp(x){
+
+function moveCardUp(x){ // funkcio a kartya onmouseover effect-jehez
     var pos = x.style.bottom;
     pos = parseInt(pos.replace("px", "")) + 30;
     x.style.bottom = pos + "px";
 }
-function moveCardBack(x){
+function moveCardBack(x){ // ez meg, hogy a kartya visszakeruljon ha mar nincs folotte az eger
     var pos = x.style.bottom;
     pos = parseInt(pos.replace("px", "")) - 30;
     x.style.bottom = pos + "px";
 }
 
-function clearTable(e){
+function clearTable(e){ // jatekter tisztito funkcio S: sajat lapok (also resz), U: utesek resz (jobb felso), A: asztal, ahova a kartyak vannak kijatszva
     cards.forEach(c => {
         var id = c.substring(0,2);
         if (e == "S"){
@@ -43,27 +42,19 @@ function clearTable(e){
     });
 }
 
-function clearTablePart(arr){
-    arr.forEach(c => {
-        var id = c.substring(0,2);
-        hideDiv(id);
-    });
-}
-function playcard(id){
+function playcard(id){ // kartya kijatszas funkcioja, fuggoen attol, hogy eppen talonozas vagy lejatszas van
     var oid = id.substring(0,2);
     var tid = oid + ".png";
     if (state == "talonozas"){
         if (hand.includes(tid)) {
             if (hand.length > 10){
                 var tmhand = [];
-                //clicked = id;
                 hand.forEach(c => {
                     if (c != tid){
                         tmhand.push(c);
                     }
                     else{
                         talon.push(c);
-
                     }
                 });
                 hand = tmhand;
@@ -76,14 +67,12 @@ function playcard(id){
         else {
             if (talon.length > 0 && talon.includes(tid)){
                 var tmtalon = [];
-                //clicked = id;
                 talon.forEach(c => {
                     if (c != tid){
                         tmtalon.push(c);
                     }
                     else{
                         hand.push(c);
-
                     }
                 });
                 talon = tmtalon;
@@ -100,7 +89,6 @@ function playcard(id){
     }
     if (state == "lejatszas"){
         hideDiv(id);
-        //clicked = id;
         sock.emit('playcard', oid);
         var tmhand = [];
         hand.forEach(c => {
@@ -115,8 +103,9 @@ function playcard(id){
         state = "lejatszas_varakozik";
     }
 }
-function showCards (arr){
-    arr.sort();
+function showCards (arr){ // Ez a funkcio rajzolja ki a kezben levo lapokat
+    //arr.sort();
+    arr = customSort(arr);
     for (var i = 0; i < arr.length; i++){
         var id = arr[i].substring(0,2);
         var x = document.getElementById(id + "S");
@@ -126,7 +115,7 @@ function showCards (arr){
         x.style.display = "block";
     }
 }
-function showTalon (arr){
+function showTalon (arr){ // Ez helyezi az asztalra a talonozott lapokat
     arr.sort();
     for (var j = 0; j < arr.length; j++){
         var id = arr[j].substring(0,2);
@@ -137,7 +126,7 @@ function showTalon (arr){
         x.style.display = "block";
     }
 }
-function showAsztal (id, num){
+function showAsztal (id, num){ // Ez helyezi az asztalra a lapokat a lejatszasnal
     var x = document.getElementById(id + "A");
     if (num == 0){
         x.style.left = "161px";
@@ -152,9 +141,8 @@ function showAsztal (id, num){
         x.style.bottom = "210px";
     }
     x.style.display = "block";
-    //clicked = "";
 }
-function createElolButton (par, name, b, l){
+function createElolButton (par, name, b, l){ // gombkeszito funkcio (nem hasznalhato ingekhez)
     const dv = document.createElement('div');
     dv.setAttribute("id", name + "-butt");
     dv.setAttribute("class", "elolrol-butt");
@@ -167,50 +155,33 @@ function createElolButton (par, name, b, l){
     dv.appendChild(fr);
     par.appendChild(dv);
 }
-function createUtesekDiv (par, num, b, l){
+function createUtesekDiv (par, num, b, l){ // utesek fejlecet (az ures szovegmezok) keszito funkcio
     const dv = document.createElement('div');
     dv.setAttribute("id", "utesek" + num);
     dv.setAttribute("class", "utes-div");
     dv.setAttribute("style", "z-index: 10; display: none; bottom: " + b + "px; left: " + l + "px");
-    //const fr = document.createElement('form');
-    //fr.setAttribute("id", name + "-form");
-    // const bt = document.createElement('button');
-    // bt.setAttribute("id", "utesbutton" + num);
-    // bt.setAttribute("onmouseover", "showUtesek(this.id)");
-    // bt.setAttribute("onmouseout", "hideUtesek(this.id)");
-    // dv.appendChild(bt);
     par.appendChild(dv);
 }
-function hideDiv (id){
+function hideDiv (id){ // div elem eltunteto id alapja
     var x = document.getElementById(id);
     x.style.display = "none";
 }
-function showDiv (id){
+function showDiv (id){ // div elem megjelenito id alapjan
     var x = document.getElementById(id);
     x.style.display = "block";
 }
-function reDrawHits(u){
+function reDrawHits(u){ // Utesek fejlecet szoveggel feltolto funkcio
     var cnt1 = 0;
     Object.keys(u).forEach(name => {
         var x = document.getElementById("utesek" + cnt1);
         x.style.display = "block";
-        //x = document.getElementById("utesbutton" + cnt1);
         x.innerText = name + " utesei";
         cnt1++;
     });
 }
-function removeUtesekButt(){
-    var arr = [0, 1, 2];
-    arr.forEach(num => {
-        var x = document.getElementById("utesek" + num);
-        x.style.display = "none";
-    });
-}
-function showUtesek(pid){
-    //var num = pid.slice(-1);
+function showUtesek(pid){ // Ez rajzolja ki az uteseket jobb oldalra
     var arr = Object.keys(utesek);
     var lapok = utesek[arr[pid]];
-    // var utesekcnt = 0;
     var harmas = 0;
     var sor = 0;
     var oszlop = 0;
@@ -221,7 +192,6 @@ function showUtesek(pid){
         x.style.zIndex = harmas + 20;
         x.style.bottom = (315 - harmas * 15 - sor * 82) + "px";
         x.style.display = "block";
-        // utesekcnt++;
         harmas++;
         if (harmas == 3){
             oszlop++;
@@ -233,17 +203,7 @@ function showUtesek(pid){
         }
     });
 }
-function hideUtesek(pid){
-    //var num = pid.slice(-1);
-    var arr = Object.keys(utesek);
-    var lapok = utesek[arr[pid]];
-    //var utesekcnt = 0;
-    lapok.forEach(id => {
-        var x = document.getElementById(id + "kU");
-        x.style.display = "none";
-    });
-}
-function masoklapja(n, l){
+function masoklapja(n, l){ // Ez a funkcio rajzolja ki a lejatszok lapjat a nezelodo(k)nek
     if (!tobbiek.includes(n)){
         tobbiek[tobbicnt] = n;
         tobbieklapja[tobbicnt] = l;
@@ -252,7 +212,7 @@ function masoklapja(n, l){
     clearTable("S");
     tobbiek.forEach((name, idx) => {
         if (name == n){
-            l.sort();
+            l = customSort(l);
             for (var i = l.length-1; i >= 0; i--){
                 var id = l[i].substring(0,2);
                 var x = document.getElementById(id + "kS");
@@ -265,7 +225,7 @@ function masoklapja(n, l){
         }
         else {
             var arr = tobbieklapja[idx];
-            arr.sort();
+            arr = customSort(arr);
             for (var i = arr.length-1; i >= 0; i--){
                 var id = arr[i].substring(0,2);
                 var x = document.getElementById(id + "kS");
@@ -277,125 +237,124 @@ function masoklapja(n, l){
         }
     });
 }
+function customSort (arr) { // kartyak sorba rendezese Zoli kerese alapjan
+    var szinarr = ["T", "Z", "M", "P"];
+    var tmo = {};
+    szinarr.forEach(szin => {
+        tmo[szin] = [];
+    });
+    arr.forEach(lap => {
+        tmo[lap.substring(0,1)].push(lap);
+    });
+    var tmarr = [];
+    szinarr.forEach(szin => {
+        tmo[szin].sort();
+        tmarr = tmarr.concat(tmo[szin]);
+    });
+    return tmarr;
+}
+function showTer (arr) { // ez mutattja a terito jatekos lapjait
+    hideDiv('teritek-butt');
+    arr = customSort(arr);
+    var i = 0;
+    arr.forEach(lap => {
+        var id = lap.substring(0,2);
+        var x = document.getElementById(id + "kU");
+        x.style.left = (2 + i * 50) + "px";
+        x.style.zIndex = i+20;
+        x.style.bottom = "-50px";
+        x.style.display = "block";
+        i++;
+    });
+}
 
 
-const sock = io();
+const sock = io(); // Inicialja a kapcsolatot a szerverrel
 
-const writeEvent = (text) => {
+const writeEvent = (text) => { // ez kezeli a cset ablakba beirt szovegeket
     const parent = document.querySelector('#events');
     const el = document.createElement('li');
     el.innerHTML = text;
     parent.appendChild(el);
     parent.scrollTop = parent.scrollHeight;
 };
-const writePlayerList = (text) => {
+const writePlayerList = (text) => { // ez frissiti a jatekosok listajat
     document.getElementById("player-list").innerHTML = text;
 };
-const onFormSubmitted = (e) => {
+const onFormSubmitted = (e) => { // ez kuldi a cset szoveget
     e.preventDefault();
     const input = document.querySelector('#chat');
     const text = input.value;
     input.value = '';
     sock.emit('message', userName + ": " + text);
 }
-const onStartGame = (e) => {
+const onStartGame = (e) => { // Jatek indito gomb (ez csak a legelejen)
     e.preventDefault();
     sock.emit('start');
     hideDiv("start-game");
 }
-// const onBedobom = (e) => {
-//     e.preventDefault();
-//     sock.emit('bedobom', hand);
-//     butt_arr.forEach(x => {
-//         hideDiv(x + "-butt");
-//     });
-//     sock.emit('message', userName + ": bedobta");
-//     nemjatszik = 1;
-//     spectator = 1;
-// }
-// const onMegyek = (e) => {
-//     e.preventDefault();
-//     sock.emit('megyek');
-//     butt_arr.forEach(x => {
-//         hideDiv(x + "-butt");
-//     });
-//     sock.emit('message', userName + ": megy tovabb");
-//     nemjatszik = 1;
-// }
-// const onJatszok = (e) => {
-//     e.preventDefault();
-//     sock.emit('jatszok');
-//     butt_arr.forEach(x => {
-//         hideDiv(x + "-butt");
-//     });
-//     sock.emit('message', userName + ": jatszik");
-// }
-const onLicit = (e) => {
+const onLicit = (e) => { // licit gomb teendo
     e.preventDefault();
     sock.emit('licit');
     butt_arr.forEach(x => {
         hideDiv(x + "-butt");
     });
 }
-const onPassz = (e) => {
+const onPassz = (e) => { // passz gom teendo
     e.preventDefault();
     sock.emit('passz');
     butt_arr.forEach(x => {
         hideDiv(x + "-butt");
     });
 }
-const onKontra = (e) => {
+const onKontra = (e) => { // kontra gomb teendo
     e.preventDefault();
     sock.emit('kontra');
     butt_arr.forEach(x => {
         hideDiv(x + "-butt");
     });
 }
-
-
-
-
-const onTalon = (e) => {
+const onTalon = (e) => { // talonozas gomb teendo
     e.preventDefault();
     sock.emit('talonbe', talon);
     hideDiv("talonozok-butt");
     clearTable("A");
     talon = [];
-    //clicked = '';
 }
-const onFelvesz = (e) => {
+const onFelvesz = (e) => { // talon felvevo gomb teendo
     e.preventDefault();
     sock.emit('talonki');
     hideDiv("felveszem-butt");
     hideDiv("mehet-butt");
 }
-const onMehet = (e) => {
+const onMehet = (e) => { // hatulrol passz (mehet) gomb teendo
     e.preventDefault();
     sock.emit('mehet');
     hideDiv("felveszem-butt");
     hideDiv("mehet-butt");
 }
-// const onLej = (e) => {
-//     e.preventDefault();
-//     sock.emit('lejatszas');
-//     hideDiv("felveszem-butt");
-// }
-const onVisz = (e) => {
+const onVisz = (e) => { // viszem gomb teendo
     e.preventDefault();
     sock.emit('viszem');
     state = "lejatszas";
 }
-const onUjParti = (e) => {
+const onUjParti = (e) => { // uj parti gomb teendo
     e.preventDefault();
     sock.emit('ujparti');
 }
+const onTerit = (e) => { // uj parti gomb teendo
+    e.preventDefault();
+    sock.emit('teritek', hand);
+    hideDiv('teritek-butt');
+}
 
+// ez a harom definialja a parent-eket a div-ek szamara a/u/s
 const parenta = document.querySelector('#asztal-div');
 const parentu = document.querySelector('#utesek-div');
 const parents = document.querySelector('#sajat-div');
 cards.forEach(imageFile => {
     var id = imageFile.substring(0,2);
-    // Nagy kartyak legyartasa
+    // Nagy kartyak legyartasa es helyukre rakasa (rejtve)
     g = document.createElement('div');
     g.setAttribute("id", id + "A");
     g.setAttribute("class", "largecard");
@@ -416,14 +375,14 @@ cards.forEach(imageFile => {
     p.setAttribute("src", "cards/" + imageFile);
     g.appendChild(p);
     parents.appendChild(g);
-    //Kis kartyak legyartasa
+    //Kis kartyak legyartasa es helyukre rakasa (rejtve)
     g = document.createElement('div');
     g.setAttribute("id", id + "kU");
     g.setAttribute("class", "smallcard");
     g.setAttribute("style", "display: none");
     p = document.createElement("img");
     p.setAttribute("src", "cards/" + imageFile);
-    p.setAttribute("style", "clip-path: inset(0px 0px 50px 0px);")
+    p.setAttribute("style", "clip-path: inset(0px 0px 50px 0px);"); // itt vagom le a kartya felet
     p.setAttribute("width", "64");
     p.setAttribute("height", "100");
     g.appendChild(p);
@@ -441,6 +400,7 @@ cards.forEach(imageFile => {
     parents.appendChild(g);
 });
 
+// Itt jon a sok-sok gomb legyartasa es a listener-ek rarakasa
 var spacer = 0;
 butt_arr.forEach(val=> {
     createElolButton(parenta, val, spacer + 100, 200);
@@ -449,8 +409,8 @@ butt_arr.forEach(val=> {
 createElolButton(parenta, "mehet", 100, 200)
 createElolButton(parenta, "talonozok", 300, 200);
 createElolButton(parenta, "felveszem", 160, 200);
-//createElolButton(parent, "lejatszas", 400, 250);
-createElolButton(parentu, "ujparti", 5, 500);
+createElolButton(parentu, "ujparti", 5, 515);
+createElolButton(parentu, "teritek", 5, 450);
 createElolButton(parenta, "viszem", 5, 360);
 document.querySelector('#start-game').addEventListener('submit', onStartGame);
 document.querySelector('#passz-form').addEventListener('submit', onPassz);
@@ -461,17 +421,14 @@ document.querySelector('#felveszem-form').addEventListener('submit', onFelvesz);
 document.querySelector('#mehet-form').addEventListener('submit', onMehet);
 document.querySelector('#viszem-form').addEventListener('submit', onVisz);
 document.querySelector('#ujparti-form').addEventListener('submit', onUjParti);
+document.querySelector('#teritek-form').addEventListener('submit', onTerit);
 document.querySelector('#chat-form').addEventListener('submit', onFormSubmitted);
 
-createUtesekDiv(parentu, "0", 420, 0);
-createUtesekDiv(parentu, "1", 420, 200);
-createUtesekDiv(parentu, "2", 420, 400);
+createUtesekDiv(parentu, "0", 422, 10);
+createUtesekDiv(parentu, "1", 422, 210);
+createUtesekDiv(parentu, "2", 422, 410);
 
-// createUteseklButton(parent, "0", 650, 350);
-// createUteseklButton(parent, "1", 650, 500);
-// createUteseklButton(parent, "2", 650, 650);
-
-const onEntrySubmitted = (e) => {
+const onEntrySubmitted = (e) => { // ha belepsz a neveddel
     e.preventDefault();
     const input = document.querySelector('#name');
     userName = input.value;
@@ -481,50 +438,40 @@ const onEntrySubmitted = (e) => {
         x.style.display = "flex";
         hideDiv("start-game");
         writeEvent('Otlapos Ulti beszelgetes');
-        sock.on('message', (text) => {
+        sock.on('message', (text) => { // ez hallgat a bejovo cset uzenetekre
             writeEvent(text);
         });
-        sock.on('plist', (text) => {
+        sock.on('plist', (text) => { // ez hallgat a bejovo player listara
             writePlayerList("Belepett jatekosok:<br/>" + text);
         });
-        sock.on('canstart', () => {
+        sock.on('canstart', () => { // ez hallgat arra, ha van mar harom jatekos es indulhat a jatek
             showDiv("start-game");
         });
-        sock.on('elolrol', (subarr)=>{
+        sock.on('elolrol', (subarr)=>{ // ez fogadja az elolrol osztast
             hideDiv("start-game");
             clearTable("S");
             clearTable("A");
             clearTable("U");
             hideDiv("ujparti-butt");
-            //hideDiv("lejatszas-butt");
+            hideDiv("teritek-butt");
             hideDiv("talonozok-butt");
-            //hideDiv("utesek0");
-            //hideDiv("utesek1");
-            //hideDiv("utesek2");
+            hideDiv("utesek0");
+            hideDiv("utesek1");
+            hideDiv("utesek2");
             utesek = {};
             asztalcnt = 0;
             talon = [];
-            nemjatszik = 0;
             spectator = 0;
             tobbiek = [];
             tobbieklapja = [];
             tobbicnt = 0;
             order = [];
-            // cards.forEach(imageFile => {
-            //     var id = imageFile.substring(0,2);
-            //     hideDiv(id + "k");
-            // });
-            //removeUtesekButt();
             state = "elol";
             hand = [];
             hand = hand.concat(subarr);
             showCards(hand);
-            // butt_arr.forEach(x => {
-            //     showDiv(x + "-butt");
-            // });
-            // hideDiv("jatszok-butt");
         });
-        sock.on('tejossz', (k) => {
+        sock.on('tejossz', (k) => { //ez fogadja az ertesitest ha a jatekos jon
             if (state == "elol"){
                 showDiv("licit-butt");
                 showDiv("passz-butt");
@@ -536,38 +483,31 @@ const onEntrySubmitted = (e) => {
                 state = "lejatszas";
             }
         });
-        sock.on('lapotkerek', () => {
+        sock.on('lapotkerek', () => { // ez jon annak aki kimarad, hogy bedobja a lapjat
             sock.emit('bedobom', hand);
             clearTable("S");
             spectator = 1;
         });
-        // sock.on('hatulrolmehet', (arr) => {
-            // if (nemjatszik == 0){
-            //     hideDiv("bedobom-butt");
-            //     hideDiv("megyek-butt");
-            //     showDiv("jatszok-butt");
-            // }
-        // });
-        sock.on('hatulrol', (arr) => {
+        sock.on('jelezzvissza', () => { // egy dummy bedobas ha harman jatszanak es nincs senki aki bedobja
+            var tmarr = [];
+            sock.emit('bedobom', tmarr);
+        });
+        sock.on('hatulrol', (arr) => { // hatulrol megkapott lapok
             clearTable("S");
             hand = hand.concat(arr);
             showCards(hand);
             state = "talonozas";
             sock.emit('tospec', hand);
         });
-        sock.on('nezelod', (arr) => {
+        sock.on('nezelod', (arr) => { // ertesites, hogy nem jatszol de nezelodsz
             clearTable("S");
             order = arr;
         });
-        sock.on('talonvan', () => {
+        sock.on('talonvan', () => { // ertesites ha talon van
             showDiv("felveszem-butt");
             showDiv("mehet-butt");
         });
-        // sock.on('talonnincs', () => {
-        //     hideDiv("felveszem-butt");
-        //     hideDiv("lejatszas-butt");
-        // });
-        sock.on('hatulindul', (arr) => {
+        sock.on('hatulindul', (arr) => { // indul a lejatszas hatul
             var myidx = arr.indexOf(userName);
             if (myidx == 0){
                 order = arr;
@@ -578,13 +518,12 @@ const onEntrySubmitted = (e) => {
             if (myidx == 2){
                 order = [userName, arr[0], arr[1]];
             }
-            // hideDiv("felveszem-butt");
-            // hideDiv("lejatszas-butt");
             state = "lejatszas_varakozik";
             utesek = {};
             showDiv("ujparti-butt");
+            showDiv("teritek-butt");
         });
-        sock.on('asztalra', (arr) => {
+        sock.on('asztalra', (arr) => { //erre jonnek a lapok az asztalra
             showAsztal(arr[0], order.indexOf(arr[1]));
             asztalcnt++;
             if (asztalcnt == 3){
@@ -594,10 +533,8 @@ const onEntrySubmitted = (e) => {
                 asztalcnt = 0;
             }
         });
-        sock.on('utes', (data) => {
+        sock.on('utes', (data) => { // erre jonnek az utesek, hogy ki lehessen rakni
             hideDiv("viszem-butt");
-            //console.log(data.name);
-            //console.log(data.lapok);
             if (!utesek[data.name]){
                 utesek[data.name] = data.lapok;
             }
@@ -605,30 +542,23 @@ const onEntrySubmitted = (e) => {
                 utesek[data.name] = utesek[data.name].concat(data.lapok);
             }
             clearTable("A");
-            //console.log(utesek);
             reDrawHits(utesek);
             var tmarr = Object.keys(utesek);
             showUtesek(tmarr.indexOf(data.name));
-            //state = "lejatszas_varakozik";
-            // if (hand.length == 0){
-            //     hand = [];
-            //     state = "elol";
-            //     talon = [];
-            //     clicked = "";
-            //     asztalcnt = 0;
-            //     showDiv("ujparti-butt");
-            // }
         });
-        sock.on('kezbenlap', (data) => {
+        sock.on('kezbenlap', (data) => { // erre jonnek masok lapjai a nezelodoknek
             if (spectator == 1){
                 masoklapja(data.name, data.lapok);
             }
+        });
+        sock.on('teritett', (arr) => {
+            showTer(arr);
         });
         sock.emit('name', userName);
     }
 };
 
-if (userName == null){
+if (userName == null){ // ez van ha meg nem leptel be
     hideDiv("mainblock");
     document.querySelector('#entry-form').addEventListener('submit', onEntrySubmitted);
 }
