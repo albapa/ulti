@@ -158,7 +158,12 @@ function createElolButton (par, name, b, l){ // gombkeszito funkcio (nem hasznal
 function createUtesekDiv (par, num, b, l){ // utesek fejlecet (az ures szovegmezok) keszito funkcio
     const dv = document.createElement('div');
     dv.setAttribute("id", "utesek" + num);
-    dv.setAttribute("class", "utes-div");
+    if (num.substring(0,1) == "m"){
+        dv.setAttribute("class", "maslapok-div");
+    }
+    else{
+        dv.setAttribute("class", "utes-div");
+    }
     dv.setAttribute("style", "z-index: 10; display: none; bottom: " + b + "px; left: " + l + "px");
     par.appendChild(dv);
 }
@@ -220,6 +225,9 @@ function masoklapja(n, l){ // Ez a funkcio rajzolja ki a lejatszok lapjat a neze
                 x.style.zIndex = i;
                 x.style.bottom = ((idx*90) - 35) + "px";
                 x.style.display = "block";
+                x = document.getElementById("utesekm" + idx);
+                x.style.display = "block";
+                x.innerText = name + ":";
             }
             tobbieklapja[idx] = l;
         }
@@ -233,9 +241,26 @@ function masoklapja(n, l){ // Ez a funkcio rajzolja ki a lejatszok lapjat a neze
                 x.style.zIndex = i;
                 x.style.bottom = ((idx*90) - 35) + "px";
                 x.style.display = "block";
+                x = document.getElementById("utesekm" + idx);
+                x.style.display = "block";
+                x.innerText = name + ":";
             }
         }
     });
+}
+function masoklapjatal (arr) {
+    var id = arr[0].substring(0,2);
+    var x = document.getElementById(id + "kS");
+    x.style.left = "980px";
+    x.style.zIndex = 1;
+    x.style.bottom = "15px";
+    x.style.display = "block";
+    id = arr[1].substring(0,2);
+    var x = document.getElementById(id + "kS");
+    x.style.left = "980px";
+    x.style.zIndex = 2;
+    x.style.bottom = "95px";
+    x.style.display = "block";
 }
 function customSort (arr) { // kartyak sorba rendezese Zoli kerese alapjan
     var szinarr = ["T", "Z", "M", "P"];
@@ -319,6 +344,8 @@ const onTalon = (e) => { // talonozas gomb teendo
     sock.emit('talonbe', talon);
     hideDiv("talonozok-butt");
     clearTable("A");
+    sock.emit('tospec', hand);
+    sock.emit('tospect', talon);
     talon = [];
 }
 const onFelvesz = (e) => { // talon felvevo gomb teendo
@@ -427,6 +454,11 @@ document.querySelector('#chat-form').addEventListener('submit', onFormSubmitted)
 createUtesekDiv(parentu, "0", 422, 10);
 createUtesekDiv(parentu, "1", 422, 210);
 createUtesekDiv(parentu, "2", 422, 410);
+createUtesekDiv(parents, "m0", 35, 5);
+createUtesekDiv(parents, "m1", 125, 5);
+createUtesekDiv(parents, "m2", 215, 5);
+createUtesekDiv(parenta, "n1", 422, 256);
+createUtesekDiv(parenta, "n2", 422, 14);
 
 const onEntrySubmitted = (e) => { // ha belepsz a neveddel
     e.preventDefault();
@@ -458,6 +490,11 @@ const onEntrySubmitted = (e) => { // ha belepsz a neveddel
             hideDiv("utesek0");
             hideDiv("utesek1");
             hideDiv("utesek2");
+            hideDiv("utesekm0");
+            hideDiv("utesekm1");
+            hideDiv("utesekm2");
+            hideDiv("utesekn1");
+            hideDiv("utesekn2");
             utesek = {};
             asztalcnt = 0;
             talon = [];
@@ -518,6 +555,12 @@ const onEntrySubmitted = (e) => { // ha belepsz a neveddel
             if (myidx == 2){
                 order = [userName, arr[0], arr[1]];
             }
+            var x = document.getElementById("utesekn1");
+            x.style.display = "block";
+            x.innerText = order[1];
+            x = document.getElementById("utesekn2");
+            x.style.display = "block";
+            x.innerText = order[2];
             state = "lejatszas_varakozik";
             utesek = {};
             showDiv("ujparti-butt");
@@ -549,6 +592,11 @@ const onEntrySubmitted = (e) => { // ha belepsz a neveddel
         sock.on('kezbenlap', (data) => { // erre jonnek masok lapjai a nezelodoknek
             if (spectator == 1){
                 masoklapja(data.name, data.lapok);
+            }
+        });
+        sock.on('kezbenlapt', (arr) => { // erre jonnek masok lapjai a nezelodoknek
+            if (spectator == 1){
+                masoklapjatal(arr);
             }
         });
         sock.on('teritett', (arr) => {

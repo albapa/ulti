@@ -218,6 +218,11 @@ function UltiGame (psocks){ // Ez a jatek motorja
                 });
             }
         });
+        player.on('tospect', (arr) => { // ez a socket fogadja a lapokat a hatulrol jatszok kezebol es tovabbitja a nezelodo jatekosoknak
+            spectators.forEach(s => {
+                s.emit('kezbenlapt', arr);
+            });
+        });
         player.on('talonbe', (arr) => { // mikor valaki lerakja a talont
             talon = arr;
             finplayers[kovetkezo].emit('talonvan');
