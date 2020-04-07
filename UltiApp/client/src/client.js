@@ -595,9 +595,9 @@ const onEntrySubmitted = (e) => { // ha belepsz a neveddel
             }
         });
         sock.on('kezbenlapt', (arr) => { // erre jonnek masok lapjai a nezelodoknek
-            if (spectator == 1){
+            //if (spectator == 1){
                 masoklapjatal(arr);
-            }
+            //}
         });
         sock.on('teritett', (arr) => {
             showTer(arr);

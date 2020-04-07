@@ -244,6 +244,7 @@ function UltiGame (psocks){ // Ez a jatek motorja
                 });
                 asztal = [];
                 backwinner.emit('tejossz', 0);
+                backwinner.emit('kezbenlapt', talon);
                 kovetkezo = finplayers.indexOf(backwinner);
             }
             else {
