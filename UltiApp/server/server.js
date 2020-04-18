@@ -25,6 +25,12 @@ var numpassz = 0; // Ez gyujti, hogy hanyan passzoltak
 var voltlicit = 0; // magaert beszel, a kontra miatt van itt
 var teritett = 0; //teritett jatek kapcsolo
 var teritopl = '';
+var finplayers = []; // Ez az array fogja tartalmazni a hatulrol jatszok socket-jet
+var spectators = []; // Ez meg azokat akik nem jatszanak de nezik a jatekot
+var frontwinner; // Aki megnyeri a licitet elolrol
+var backwinner; // Es aki hatulrol
+var cards = ['M1.png', 'M2.png', 'M3.png', 'M4.png', 'M5.png', 'M6.png', 'M7.png', 'M8.png', 'P1.png', 'P2.png', 'P3.png', 'P4.png', 'P5.png', 'P6.png', 'P7.png', 'P8.png', 'T1.png', 'T2.png', 'T3.png', 'T4.png', 'T5.png', 'T6.png', 'T7.png', 'T8.png', 'Z1.png', 'Z2.png', 'Z3.png', 'Z4.png', 'Z5.png', 'Z6.png', 'Z7.png', 'Z8.png'];
+
 
 function shuffle(arr) { // kartya kevero funkcio
     var ctr = arr.length, temp, index;
@@ -41,15 +47,10 @@ function shuffle(arr) { // kartya kevero funkcio
 function checkConnected() { // Funkcio a csatlakozott jatekosok ellenorzesere
     var tmplayers = {};
     var tmplayersock = [];
-    Object.keys(players).forEach(id => {
-        if (io.sockets.connected[id]) { 
-            tmplayers[id] = players[id];
-            playerSockets.forEach(s => {
-                if (s.id == id){
-                    tmplayersock.push(s);
-                }
-            });
-            
+    playerSockets.forEach(s => {
+        if (io.sockets.connected[s.id]) {
+            tmplayers[s.id] = players[s.id];
+            tmplayersock.push(s);
         }
     });
     players = tmplayers;
@@ -78,232 +79,6 @@ function updateKovetkezo(idx, len){ // Ki a kovetkezo funkcio, ha a lista vegere
     }
 }
 
-function UltiGame (psocks){ // Ez a jatek motorja
-    var finplayers = []; // Ez az array fogja tartalmazni a hatulrol jatszok socket-jet
-    var spectators = []; // Ez meg azokat akik nem jatszanak de nezik a jatekot
-    var frontwinner; // Aki megnyeri a licitet elolrol
-    var backwinner; // Es aki hatulrol
-    numpassz = 0;
-    tovabbmenok = [];
-    voltlicit = 0;
-    kezdo = 0;
-    teritett = 0;
-    teritopl = '';
-    var cards = ['M1.png', 'M2.png', 'M3.png', 'M4.png', 'M5.png', 'M6.png', 'M7.png', 'M8.png', 'P1.png', 'P2.png', 'P3.png', 'P4.png', 'P5.png', 'P6.png', 'P7.png', 'P8.png', 'T1.png', 'T2.png', 'T3.png', 'T4.png', 'T5.png', 'T6.png', 'T7.png', 'T8.png', 'Z1.png', 'Z2.png', 'Z3.png', 'Z4.png', 'Z5.png', 'Z6.png', 'Z7.png', 'Z8.png'];
-    psocks.forEach(sock => { // Csak egy kis batoritas
-        sock.emit('message', "Induljon a jatek");
-    })
-    var aktdeck = shuffle(cards);
-    var cnt= 0;
-    psocks.forEach(s => { // elolrol osztas mindenkinek 5 lap
-        s.emit('elolrol', aktdeck.slice(cnt, cnt+5));
-        cnt += 5;
-    });
-    var leftover = aktdeck.slice(cnt); // Ez a valtozo tartalmazza mindig a maradek kartyakat
-    psocks[kezdo].emit('tejossz', voltlicit); // uzenet a kezdo jatekosnak (ezzel kerulnek majd ki a licit es passz gombok)
-    updatePlist(players[psocks[kezdo].id], Object.values(players));
-    kezdo++; // Ettol kezdi majd a kovetkezo partit a kovetkezo jatekos
-    if (kezdo > psocks.length - 1){
-        kezdo = 0;
-    }
-    kovetkezo = kezdo;
-    psocks.forEach((player, idx) => { // Ezeket a socket listenereket fogja minden jatekos fele megnyitni
-        player.on('bedobom', (arr) => { // amikor az elolrol kimaradok bedobjak a lapjukat
-            leftover = leftover.concat(arr);
-            if (leftover.length == 17){
-                leftover = shuffle(leftover);
-                var cnt = 0;
-                finplayers.forEach(s => { // hatso 5 lap kiosztasa
-                    s.emit('hatulrol', leftover.slice(cnt, cnt+5));
-                    cnt += 5;
-                });
-                frontwinner.emit('hatulrol', leftover.slice(cnt)); // maradek ketto kiosztasa
-                order = [];
-                finplayers.forEach( s => { // mindenkinek kikuldi a sorrendet
-                    order.push(players[s.id]);
-                });
-                spectators.forEach(s => { // megmondja, hogy ki lesz nezelodo
-                    s.emit('nezelod', order);
-                });
-                updatePlist(players[frontwinner.id], Object.values(players));
-                kovetkezo = updateKovetkezo(finplayers.indexOf(frontwinner), finplayers.length);
-                numpassz = 0;
-            }
-        });
-        player.on('licit', () => { // amikor valaki elolrol licital
-            if (tovabbmenok.indexOf(player) < 3){
-                var tmparr = [player];
-                tovabbmenok.forEach(p => {
-                    if (p != player){
-                        tmparr.push(p);
-                    }
-                });
-                tovabbmenok = tmparr;
-            }
-            else {
-                tovabbmenok.unshift(player);
-            }
-            voltlicit = 1;
-            psocks[kovetkezo].emit('tejossz', voltlicit);
-            updatePlist(players[psocks[kovetkezo].id], Object.values(players));
-            kovetkezo = updateKovetkezo(kovetkezo, psocks.length);
-            numpassz = 0;
-        });
-        player.on('kontra', () => { // amikor valaki elolrol kontrazik
-            if (tovabbmenok.indexOf(player) < 3){
-                var tmparr = [tovabbmenok[0], player];
-                tovabbmenok.slice(1).forEach(p => {
-                    if (p != player){
-                        tmparr.push(p);
-                    }
-                });
-            }
-            else {
-                var tmparr = [tovabbmenok[0], player, tovabbmenok.slice(1)];
-            }
-            tovabbmenok = tmparr;
-            voltlicit = 0;
-            psocks[kovetkezo].emit('tejossz', voltlicit);
-            updatePlist(players[psocks[kovetkezo].id], Object.values(players));
-            kovetkezo = updateKovetkezo(kovetkezo, psocks.length);
-            numpassz = 0;
-        });
-        player.on('passz', () => { // amikor valaki elolrol passzol
-            numpassz++;
-            if (numpassz == psocks.length){ // ha mar mindenki passzolt
-                finplayers = tovabbmenok.slice(0,3);
-                frontwinner = finplayers[0];
-                backwinner = frontwinner;
-                spectators = [];
-                var tmarr = [];
-                psocks.forEach(s => {
-                    if (!finplayers.includes(s)){
-                        spectators.push(s);
-                        s.emit('lapotkerek');
-                    }
-                    else {
-                        tmarr.push(s);
-                    }
-                });
-                finplayers = tmarr;
-                if (psocks.length == 3){ //ha csak harman jatszanak es nincs aki bedobja
-                    frontwinner.emit('jelezzvissza');
-                }
-            }
-            else{
-                if (tovabbmenok.length < 3){
-                    tovabbmenok.push(player);
-                }
-                if (psocks[kovetkezo] != tovabbmenok[0]){
-                    psocks[kovetkezo].emit('tejossz', voltlicit);
-                }
-                else{
-                    psocks[kovetkezo].emit('tejossz', 0);
-                }
-                updatePlist(players[psocks[kovetkezo].id], Object.values(players));
-                kovetkezo = updateKovetkezo(kovetkezo, psocks.length);
-                
-            }
-        });
-
-
-
-        player.on('tospec', (arr) => { // ez a socket fogadja a lapokat a hatulrol jatszok kezebol es tovabbitja a nezelodo jatekosoknak
-            spectators.forEach(s => {
-                s.emit('kezbenlap', {name: players[player.id], lapok: arr});
-            });
-            if (teritett == 1 && teritopl == player){
-                finplayers.forEach(p => {
-                    p.emit('teritett', arr);
-                });
-            }
-        });
-        player.on('tospect', (arr) => { // ez a socket fogadja a lapokat a hatulrol jatszok kezebol es tovabbitja a nezelodo jatekosoknak
-            spectators.forEach(s => {
-                s.emit('kezbenlapt', arr);
-            });
-        });
-        player.on('talonbe', (arr) => { // mikor valaki lerakja a talont
-            talon = arr;
-            finplayers[kovetkezo].emit('talonvan');
-            updatePlist(players[finplayers[kovetkezo].id], Object.values(players));
-        });
-
-        player.on('talonki', () => { // mikor valaki felveszi a talont
-            player.emit('hatulrol', talon);
-            kovetkezo = updateKovetkezo(kovetkezo, finplayers.length);
-            numpassz = 0;
-            backwinner = player;
-        });
-        player.on('mehet', () => { // mikor hatulrol passzolsz
-            kovetkezo = updateKovetkezo(kovetkezo, finplayers.length);
-            numpassz++;
-            if (numpassz == 3){
-                finplayers.forEach(s => {
-                    s.emit('hatulindul', order);
-                });
-                asztal = [];
-                backwinner.emit('tejossz', 0);
-                backwinner.emit('kezbenlapt', talon);
-                kovetkezo = finplayers.indexOf(backwinner);
-            }
-            else {
-                finplayers[kovetkezo].emit('talonvan');
-                updatePlist(players[finplayers[kovetkezo].id], Object.values(players));
-            }
-        });
-        player.on('playcard', (lap) => { // kartya kijatszasa barhonnan
-            asztal.push(lap);
-            var tmarr = [lap, players[player.id]];
-            psocks.forEach(s => {
-                s.emit('asztalra', tmarr);
-            });
-            kovetkezo = updateKovetkezo(kovetkezo, finplayers.length);
-            finplayers[kovetkezo].emit('tejossz', 0);
-        });
-        player.on('viszem', () => { // ha valaki viszi az utest
-            psocks.forEach(s =>{
-                s.emit('utes', {name: players[player.id], lapok: asztal});
-            });
-            asztal = [];
-            player.emit('tejossz', 0);
-            kovetkezo = finplayers.indexOf(player);
-        });
-        player.on('ujparti', () => { // ujparti inditas, valtozok kiuritese, nullazasa, uj keveres, stb
-            finplayers = [];
-            spectators = [];
-            frontwinner = '';
-            numpassz = 0;
-            tovabbmenok = [];
-            voltlicit = 0;
-            teritett = 0;
-            aktdeck = shuffle(cards);
-            cnt= 0;
-            teritopl = '';
-            psocks.forEach(s => {
-                s.emit('elolrol', aktdeck.slice(cnt, cnt+5));
-                cnt += 5;
-            });
-            leftover = aktdeck.slice(cnt);
-            psocks[kezdo].emit('tejossz', voltlicit);
-            updatePlist(players[psocks[kezdo].id], Object.values(players));
-            kezdo++;
-            if (kezdo > psocks.length - 1){
-                kezdo = 0;
-            }
-            kovetkezo = kezdo;
-        });
-        player.on('teritek', (arr) => {
-            teritett = 1;
-            teritopl = player;
-            finplayers.forEach(p => {
-                p.emit('teritett', arr);
-            });
-        });
-    });
-}
-
-
 io.on('connection', (sock) => {
     console.log('Someone connected');
     sock.on('name', (text) => { // Ez a socket listener veszi be a jatekosok nevet es figyeli, hogy van-e mar harom jatekos
@@ -322,9 +97,206 @@ io.on('connection', (sock) => {
     sock.on('message', (text) => { // Ez a socket listener kezeli a bal oldali csetbe jovo uzenetek tovabbitasat
         io.emit('message', text);
     });
-    sock.on('start', () => { // Jatek inditasa gombra indul a fo funkcio
-        checkConnected();
-        UltiGame(playerSockets);
+    //
+    // Jatek inditasa
+    //
+    sock.on('ujparti', () => { // ujparti inditas, valtozok kiuritese, nullazasa, uj keveres, stb
+        finplayers = [];
+        spectators = [];
+        frontwinner = '';
+        numpassz = 0;
+        tovabbmenok = [];
+        voltlicit = 0;
+        teritett = 0;
+        aktdeck = shuffle(cards);
+        cnt= 0;
+        teritopl = '';
+        playerSockets.forEach(s => {
+            s.emit('elolrol', aktdeck.slice(cnt, cnt+5));
+            cnt += 5;
+        });
+        leftover = aktdeck.slice(cnt);
+        playerSockets[kezdo].emit('tejossz', voltlicit);
+        updatePlist(players[playerSockets[kezdo].id], Object.values(players));
+        kezdo++;
+        if (kezdo > playerSockets.length - 1){
+            kezdo = 0;
+        }
+        kovetkezo = kezdo;
+    });
+    //
+    // Elolrol licitalas
+    //
+    sock.on('elovalasztas', (c) => { // amikor valaki elolrol licital
+        if (c == "licit"){
+            if (tovabbmenok.indexOf(sock) < 3){
+                var tmparr = [sock];
+                tovabbmenok.forEach(p => {
+                    if (p != sock){
+                        tmparr.push(p);
+                    }
+                });
+                tovabbmenok = tmparr;
+            }
+            else {
+                tovabbmenok.unshift(sock);
+            }
+            voltlicit = 1;
+            playerSockets[kovetkezo].emit('tejossz', voltlicit);
+            updatePlist(players[playerSockets[kovetkezo].id], Object.values(players));
+            kovetkezo = updateKovetkezo(kovetkezo, playerSockets.length);
+            numpassz = 0;
+        }
+        if (c == "kontra"){
+            if (tovabbmenok.indexOf(sock) < 3){
+                var tmparr = [tovabbmenok[0], sock];
+                tovabbmenok.slice(1).forEach(p => {
+                    if (p != sock){
+                        tmparr.push(p);
+                    }
+                });
+            }
+            else {
+                var tmparr = [tovabbmenok[0], player, tovabbmenok.slice(1)];
+            }
+            tovabbmenok = tmparr;
+            voltlicit = 0;
+            playerSockets[kovetkezo].emit('tejossz', voltlicit);
+            updatePlist(players[playerSockets[kovetkezo].id], Object.values(players));
+            kovetkezo = updateKovetkezo(kovetkezo, playerSockets.length);
+            numpassz = 0;
+        }
+        if (c == "passz"){
+            numpassz++;
+            if (numpassz == playerSockets.length){ // ha mar mindenki passzolt
+                finplayers = tovabbmenok.slice(0,3);
+                frontwinner = finplayers[0];
+                backwinner = frontwinner;
+                spectators = [];
+                var tmarr = [];
+                playerSockets.forEach(s => {
+                    if (!finplayers.includes(s)){
+                        spectators.push(s);
+                        s.emit('lapotkerek');
+                    }
+                    else {
+                        tmarr.push(s);
+                    }
+                });
+                finplayers = tmarr;
+                if (playerSockets.length == 3){ //ha csak harman jatszanak es nincs aki bedobja
+                    frontwinner.emit('jelezzvissza');
+                }
+            }
+            else{
+                if (tovabbmenok.length < 3){
+                    tovabbmenok.push(sock);
+                }
+                if (playerSockets[kovetkezo] != tovabbmenok[0]){
+                    playerSockets[kovetkezo].emit('tejossz', voltlicit);
+                }
+                else{
+                    playerSockets[kovetkezo].emit('tejossz', 0);
+                }
+                updatePlist(players[playerSockets[kovetkezo].id], Object.values(players));
+                kovetkezo = updateKovetkezo(kovetkezo, playerSockets.length);
+            }
+        }
+    });
+    sock.on('bedobom', (arr) => { // amikor az elolrol kimaradok bedobjak a lapjukat
+        leftover = leftover.concat(arr);
+        if (leftover.length == 17){
+            leftover = shuffle(leftover);
+            var cnt = 0;
+            finplayers.forEach(s => { // hatso 5 lap kiosztasa
+                s.emit('hatulrol', leftover.slice(cnt, cnt+5));
+                cnt += 5;
+            });
+            frontwinner.emit('hatulrol', leftover.slice(cnt)); // maradek ketto kiosztasa
+            order = [];
+            finplayers.forEach( s => { // mindenkinek kikuldi a sorrendet
+                order.push(players[s.id]);
+            });
+            spectators.forEach(s => { // megmondja, hogy ki lesz nezelodo
+                s.emit('nezelod', order);
+            });
+            updatePlist(players[frontwinner.id], Object.values(players));
+            kovetkezo = updateKovetkezo(finplayers.indexOf(frontwinner), finplayers.length);
+            numpassz = 0;
+        }
+    });
+    //
+    // Talonozas
+    //
+    sock.on('talonbe', (arr) => { // mikor valaki lerakja a talont
+        talon = arr;
+        finplayers[kovetkezo].emit('talonvan');
+        updatePlist(players[finplayers[kovetkezo].id], Object.values(players));
+    });
+    sock.on('talonki', () => { // mikor valaki felveszi a talont
+        sock.emit('hatulrol', talon);
+        kovetkezo = updateKovetkezo(kovetkezo, finplayers.length);
+        numpassz = 0;
+        backwinner = player;
+    });
+    sock.on('mehet', () => { // mikor hatulrol passzolsz
+        kovetkezo = updateKovetkezo(kovetkezo, finplayers.length);
+        numpassz++;
+        if (numpassz == 3){
+            finplayers.forEach(s => {
+                s.emit('hatulindul', order);
+            });
+            asztal = [];
+            backwinner.emit('tejossz', 0);
+            backwinner.emit('kezbenlapt', talon);
+            kovetkezo = finplayers.indexOf(backwinner);
+        }
+        else {
+            finplayers[kovetkezo].emit('talonvan');
+            updatePlist(players[finplayers[kovetkezo].id], Object.values(players));
+        }
+    });
+    sock.on('tospect', (arr) => { // ez a socket fogadja a talont a hatulrol jatszok kezebol es tovabbitja a nezelodo jatekosoknak
+        spectators.forEach(s => {
+            s.emit('kezbenlapt', arr);
+        });
+    });
+    //
+    // Jatek hatulrol
+    //
+    sock.on('playcard', (lap) => { // kartya kijatszasa barhonnan
+        asztal.push(lap);
+        var tmarr = [lap, players[sock.id]];
+        playerSockets.forEach(s => {
+            s.emit('asztalra', tmarr);
+        });
+        kovetkezo = updateKovetkezo(kovetkezo, finplayers.length);
+        finplayers[kovetkezo].emit('tejossz', 0);
+    });
+    sock.on('viszem', () => { // ha valaki viszi az utest
+        playerSockets.forEach(s =>{
+            s.emit('utes', {name: players[sock.id], lapok: asztal});
+        });
+        asztal = [];
+        sock.emit('tejossz', 0);
+        kovetkezo = finplayers.indexOf(sock);
+    });
+    sock.on('tospec', (arr) => { // ez a socket fogadja a lapokat a hatulrol jatszok kezebol es tovabbitja a nezelodo jatekosoknak
+        spectators.forEach(s => {
+            s.emit('kezbenlap', {name: players[sock.id], lapok: arr});
+        });
+        if (teritett == 1 && teritopl == sock){
+            finplayers.forEach(p => {
+                p.emit('teritett', arr);
+            });
+        }
+    });
+    sock.on('teritek', (arr) => {
+        teritett = 1;
+        teritopl = sock;
+        finplayers.forEach(p => {
+            p.emit('teritett', arr);
+        });
     });
 })
 

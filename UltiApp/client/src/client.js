@@ -315,26 +315,26 @@ const onFormSubmitted = (e) => { // ez kuldi a cset szoveget
 }
 const onStartGame = (e) => { // Jatek indito gomb (ez csak a legelejen)
     e.preventDefault();
-    sock.emit('start');
+    sock.emit('ujparti');
     hideDiv("start-game");
 }
 const onLicit = (e) => { // licit gomb teendo
     e.preventDefault();
-    sock.emit('licit');
+    sock.emit('elovalasztas', 'licit');
     butt_arr.forEach(x => {
         hideDiv(x + "-butt");
     });
 }
 const onPassz = (e) => { // passz gom teendo
     e.preventDefault();
-    sock.emit('passz');
+    sock.emit('elovalasztas', 'passz');
     butt_arr.forEach(x => {
         hideDiv(x + "-butt");
     });
 }
 const onKontra = (e) => { // kontra gomb teendo
     e.preventDefault();
-    sock.emit('kontra');
+    sock.emit('elovalasztas', 'kontra');
     butt_arr.forEach(x => {
         hideDiv(x + "-butt");
     });
@@ -487,6 +487,7 @@ const onEntrySubmitted = (e) => { // ha belepsz a neveddel
             hideDiv("ujparti-butt");
             hideDiv("teritek-butt");
             hideDiv("talonozok-butt");
+            hideDiv("viszem-butt");
             hideDiv("utesek0");
             hideDiv("utesek1");
             hideDiv("utesek2");
