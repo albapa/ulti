@@ -157,7 +157,7 @@ io.on('connection', (sock) => {
                 });
             }
             else {
-                var tmparr = [tovabbmenok[0], player, tovabbmenok.slice(1)];
+                var tmparr = [tovabbmenok[0], sock, tovabbmenok.slice(1)];
             }
             tovabbmenok = tmparr;
             voltlicit = 0;
@@ -237,7 +237,7 @@ io.on('connection', (sock) => {
         sock.emit('hatulrol', talon);
         kovetkezo = updateKovetkezo(kovetkezo, finplayers.length);
         numpassz = 0;
-        backwinner = player;
+        backwinner = sock;
     });
     sock.on('mehet', () => { // mikor hatulrol passzolsz
         kovetkezo = updateKovetkezo(kovetkezo, finplayers.length);
