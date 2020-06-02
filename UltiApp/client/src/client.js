@@ -513,7 +513,7 @@ const onEntrySubmitted = (e) => { // ha belepsz a neveddel
             if (state == "elol"){
                 showDiv("licit-butt");
                 showDiv("passz-butt");
-                if (k == 1){
+                if (k > 0){
                     showDiv("kontra-butt");
                 }
             }

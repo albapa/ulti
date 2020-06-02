@@ -141,26 +141,27 @@ io.on('connection', (sock) => {
             else {
                 tovabbmenok.unshift(sock);
             }
-            voltlicit = 1;
+            voltlicit = 2;
             playerSockets[kovetkezo].emit('tejossz', voltlicit);
             updatePlist(players[playerSockets[kovetkezo].id], Object.values(players));
             kovetkezo = updateKovetkezo(kovetkezo, playerSockets.length);
             numpassz = 0;
         }
         if (c == "kontra"){
-            if (tovabbmenok.indexOf(sock) < 3){
-                var tmparr = [tovabbmenok[0], sock];
-                tovabbmenok.slice(1).forEach(p => {
-                    if (p != sock){
-                        tmparr.push(p);
-                    }
-                });
-            }
-            else {
-                var tmparr = [tovabbmenok[0], sock, tovabbmenok.slice(1)];
-            }
+            var tmparr = [];
+            // if (tovabbmenok.indexOf(sock) < 3){
+            tmparr = [tovabbmenok[0], sock];
+            tovabbmenok.slice(1).forEach(p => {
+                if (p != sock){
+                    tmparr.push(p);
+                }
+            });
+            // }
+            // else {
+            //     tmparr = [tovabbmenok[0], sock, tovabbmenok.slice(1)];
+            // }
             tovabbmenok = tmparr;
-            voltlicit = 0;
+            voltlicit = voltlicit - 1;
             playerSockets[kovetkezo].emit('tejossz', voltlicit);
             updatePlist(players[playerSockets[kovetkezo].id], Object.values(players));
             kovetkezo = updateKovetkezo(kovetkezo, playerSockets.length);
