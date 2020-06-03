@@ -170,6 +170,7 @@ io.on('connection', (sock) => {
         if (c == "passz"){
             numpassz++;
             if (numpassz == playerSockets.length){ // ha mar mindenki passzolt
+                tovabbmenok.push(sock);
                 finplayers = tovabbmenok.slice(0,3);
                 frontwinner = finplayers[0];
                 backwinner = frontwinner;
