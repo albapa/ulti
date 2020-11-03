@@ -60,12 +60,48 @@ function checkConnected() { // Funkcio a csatlakozott jatekosok ellenorzesere
 
 function updatePlist (name, arr){ // Ez a funkcio frissiti es kuldi ki a jatekosoknak a nev listat,ha kell akkor jelezve, hogy ki jon
     var tmparr = [];
+    var col_n = '';
     arr.forEach(n => {
+        col_n = n;
+        if (tovabbmenok.length > 0){
+            if (tovabbmenok.length == 1){
+                if (players[tovabbmenok[0].id] == n){
+                    col_n = "<span style=\"color:darkred;font-weight:bold\">" + n + "</span>";
+                }
+            }
+            if (tovabbmenok.length == 2){
+                if (players[tovabbmenok[0].id] == n){
+                    col_n = "<span style=\"color:darkred;font-weight:bold\">" + n + "</span>";
+                }
+                if (players[tovabbmenok[1].id] == n){
+                    col_n = "<span style=\"color:darkgreen;font-weight:bold\">" + n + "</span>";
+                }
+            }
+            if (tovabbmenok.length > 2){
+                if (players[tovabbmenok[0].id] == n){
+                    col_n = "<span style=\"color:darkred;font-weight:bold\">" + n + "</span>";
+                }
+                if (players[tovabbmenok[1].id] == n){
+                    col_n = "<span style=\"color:darkgreen;font-weight:bold\">" + n + "</span>";
+                }
+                if (players[tovabbmenok[2].id] == n){
+                    col_n = "<span style=\"color:darkgreen;font-weight:bold\">" + n + "</span>";
+                }
+            }
+        }
+        if (finplayers.length == 3){
+            if (players[finplayers[0].id] == n || players[finplayers[1].id] == n || players[finplayers[2].id] == n){
+                col_n = "<span style=\"color:darkgreen;font-weight:bold\">" + n + "</span>";
+            }
+            if (players[backwinner.id] == n){
+                col_n = "<span style=\"color:darkred;font-weight:bold\">" + n + "</span>";
+            }
+        }
         if (n == name){
-            tmparr.push("> " + n);
+            tmparr.push("> " + col_n);
         }
         else{
-            tmparr.push(n);
+            tmparr.push(col_n);
         }
     });
     io.emit('plist', tmparr.join("<br/>"));

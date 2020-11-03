@@ -321,6 +321,7 @@ const onStartGame = (e) => { // Jatek indito gomb (ez csak a legelejen)
 const onLicit = (e) => { // licit gomb teendo
     e.preventDefault();
     sock.emit('elovalasztas', 'licit');
+    sock.emit('message', userName + ": Licit");
     butt_arr.forEach(x => {
         hideDiv(x + "-butt");
     });
@@ -328,6 +329,7 @@ const onLicit = (e) => { // licit gomb teendo
 const onPassz = (e) => { // passz gom teendo
     e.preventDefault();
     sock.emit('elovalasztas', 'passz');
+    sock.emit('message', userName + ": Passz");
     butt_arr.forEach(x => {
         hideDiv(x + "-butt");
     });
@@ -335,6 +337,7 @@ const onPassz = (e) => { // passz gom teendo
 const onKontra = (e) => { // kontra gomb teendo
     e.preventDefault();
     sock.emit('elovalasztas', 'kontra');
+    sock.emit('message', userName + ": Kontra");
     butt_arr.forEach(x => {
         hideDiv(x + "-butt");
     });
@@ -368,6 +371,7 @@ const onVisz = (e) => { // viszem gomb teendo
 const onUjParti = (e) => { // uj parti gomb teendo
     e.preventDefault();
     sock.emit('ujparti');
+    sock.emit('message', "--- Uj parti ---");
 }
 const onTerit = (e) => { // uj parti gomb teendo
     e.preventDefault();
@@ -463,7 +467,7 @@ createUtesekDiv(parenta, "n2", 422, 14);
 const onEntrySubmitted = (e) => { // ha belepsz a neveddel
     e.preventDefault();
     const input = document.querySelector('#name');
-    userName = input.value;
+    userName = input.value.substring(0, 8);
     if (userName){
         hideDiv("entry");
         var x = document.getElementById("mainblock");
